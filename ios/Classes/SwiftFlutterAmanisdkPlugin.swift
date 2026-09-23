@@ -61,7 +61,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
            let birthDate = arguments["birthDate"] as? String,
            let expireDate = arguments["expireDate"] as? String,
            let documentNo = arguments["documentNo"] as? String {
-            print("Plugin tarafından NFC için isteğe çıkılacak: \(arguments)")
+            print("[AmaniBridge][IDCapture] Starting NFC scan")
             
             let idCapture = IdCapture()
             Task {
@@ -87,6 +87,9 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     case "uploadIDCapture":
       let idCapture = IdCapture()
       idCapture.upload(result: result)
+    case "uploadIDCaptureWithDocumentId":
+      let idCapture = IdCapture()
+      idCapture.uploadWithDocumentId(result: result)
       // get Mrz Data
     case "getMrz":
     let idCapture = IdCapture()
@@ -308,11 +311,13 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     }
   }
     private func getCustomerInfo(result: @escaping FlutterResult) {
-     Amani.sharedInstance.customerInfo().getCustomer(forceUpdateCallback: {
-        info in
-        guard let customerInfo = info else {
-          return
-        }
+        // Use the customer data cached by the SDK instead of getCustomer(forceUpdateCallback:).
+        // The forced fetch runs on CustomerInfo's own service instance, and a successful
+        // getCustomer makes that instance the SSE listener (ServiceManager.shared.delegate).
+        // That instance has no AmaniServiceDelegate, so mrz_result / step_results events
+        // stop reaching Amani and mrzInfoDelegate never fires. initAmani already caches a
+        // fresh customer, and step_results SSE events keep its rule statuses up to date.
+        let customerInfo = Amani.sharedInstance.customerInfo().getCustomer()
         var rulesArray: [[String: Any]] = []
         if let rules = customerInfo.rules {
             for rule in rules {
@@ -343,7 +348,6 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         ]
         
         result(customerInfoDict)
-      })
   }
   
 }

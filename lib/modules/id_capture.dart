@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:flutter_amanisdk/common/models/id_upload_result.dart';
 import 'package:flutter_amanisdk/common/models/nvi_data.dart';
 import 'package:flutter_amanisdk/flutter_amanisdk_method_channel.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +55,7 @@ class IdCapture {
           mrzData.addAll(eventData);
           return mrzData;
         } catch (e) {
-          print("Hata: Veriyi ayrıştırma sırasında bir hata oluştu - $e");
+          print("[AmaniSDK] Failed to parse MRZ data: $e");
           return {};
         }
     }
@@ -70,6 +71,23 @@ class IdCapture {
     try {
       final bool isDone = await _methodChannel.uploadIDCapture();
       return isDone;
+    } catch (err) {
+      rethrow;
+    }
+  }
+
+  /// Uploads the captured ID and also returns the created `documentId`.
+  ///
+  /// Currently the `documentId` is only provided on iOS. On other platforms
+  /// this falls back to [upload] and `documentId` is always `null`.
+  Future<IdUploadResult> uploadWithDocumentId() async {
+    try {
+      if (!Platform.isIOS) {
+        final bool isDone = await _methodChannel.uploadIDCapture();
+        return IdUploadResult(isSuccess: isDone, documentId: null);
+      }
+      final response = await _methodChannel.uploadIDCaptureWithDocumentId();
+      return IdUploadResult.fromMap(response);
     } catch (err) {
       rethrow;
     }

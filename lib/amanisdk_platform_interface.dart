@@ -103,6 +103,11 @@ abstract class AmaniSDKPlatform extends PlatformInterface {
     throw UnimplementedError('uploadIDCapture() has not been implemented.');
   }
 
+  Future<Map<String, dynamic>> uploadIDCaptureWithDocumentId() {
+    throw UnimplementedError(
+        'uploadIDCaptureWithDocumentId() has not been implemented.');
+  }
+
   Future<void> setIDCaptureManualButtonTimeout(int timeout) {
     throw UnimplementedError(
         'setIDCaptureManualButtonTimeout() has not been implemented.');

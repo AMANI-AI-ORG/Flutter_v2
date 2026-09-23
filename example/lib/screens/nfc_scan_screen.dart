@@ -34,15 +34,16 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
   @override
   void initState() {
     super.initState();
-    _startFlow();
+    // Only listen for the MRZ delegate here; the MRZ request is sent on button tap.
+    _startListeningForMrzEvents();
   }
 
-  Future<void> _startFlow() async {
-    _startListeningForMrzEvents();
-
-    // UI: MRZ isteği atılmadan hemen önce spinner
-    await Future<void>.delayed(Duration.zero);
-    unawaited(_startMrzRequest());
+  Future<void> _onTapMainButton() async {
+    if (_isMrzReady) {
+      await _onTapStartNFC();
+    } else {
+      await _startMrzRequest();
+    }
   }
 
   void _startListeningForMrzEvents() {
@@ -79,7 +80,7 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
   }
 
   Future<void> _startMrzRequest() async {
-    if (!mounted) return;
+    if (!mounted || _isFetchingMrz) return;
     setState(() {
       _error = "";
       _isFetchingMrz = true;
@@ -200,7 +201,10 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
       return;
     }
 
-    final bool isSuccess = await _idCapture.upload();
+    final uploadResult = await _idCapture.uploadWithDocumentId();
+    debugPrint(
+        "IDCapture upload: ${uploadResult.isSuccess}, documentId: ${uploadResult.documentId}");
+    final bool isSuccess = uploadResult.isSuccess;
 
     if (!mounted) return;
 
@@ -232,7 +236,10 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool buttonEnabled = _isMrzReady && !_isStartingNfc && !_isFetchingMrz;
+    final bool buttonEnabled = !_isStartingNfc && !_isFetchingMrz;
+    final String buttonLabel = _isFetchingMrz
+        ? "MRZ Bekleniyor..."
+        : (_isMrzReady ? "NFC Taramasını Başlat" : "MRZ Bilgisini Al");
 
     return Scaffold(
       appBar: AppBar(title: const Text('NFC Tarama')),
@@ -242,9 +249,11 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
             padding: const EdgeInsets.only(top: 60),
             child: Column(
               children: [
-                const Center(
+                Center(
                   child: Text(
-                    'NFC sürecini başlatmak için butona basınız',
+                    _isMrzReady
+                        ? 'NFC sürecini başlatmak için butona basınız'
+                        : 'MRZ bilgisini almak için butona basınız',
                     style: TextStyle(fontSize: 18),
                     textAlign: TextAlign.center,
                   ),
@@ -270,14 +279,14 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
             right: 16,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-              onPressed: buttonEnabled ? _onTapStartNFC : null,
+              onPressed: buttonEnabled ? _onTapMainButton : null,
               child: _isStartingNfc
                   ? const SizedBox(
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                     )
-                  : Text(_isFetchingMrz ? "MRZ Bekleniyor..." : "NFC Taramasını Başlat"),
+                  : Text(buttonLabel),
             ),
           ),
 

@@ -85,8 +85,11 @@ Widget build(BuildContext context) {
                   if (args.source == "idCapture" &&
                       args.idCaptureBothSidesTaken == true &&
                       args.idCaptureNFCCompleted == true) {
-                    bool isSuccess = await _idCapture.upload();
-                    if (isSuccess) {
+                    final uploadResult =
+                        await _idCapture.uploadWithDocumentId();
+                    debugPrint(
+                        "IDCapture upload: ${uploadResult.isSuccess}, documentId: ${uploadResult.documentId}");
+                    if (uploadResult.isSuccess) {
                       Navigator.pushReplacementNamed(context, '/');
                     }
                   } else if (args.source == "idCapture" &&

@@ -85,18 +85,28 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     }
   }
 
+  @override
+  Future<Map<String, dynamic>> uploadIDCaptureWithDocumentId() async {
+    try {
+      final Map<dynamic, dynamic>? response = await methodChannel
+          .invokeMethod<Map<dynamic, dynamic>>('uploadIDCaptureWithDocumentId');
+      return Map<String, dynamic>.from(response ?? const {});
+    } catch (err) {
+      rethrow;
+    }
+  }
+
 @override
     Future<String?> getMrzRequest() async {
     try {
 
      final String? result = await methodChannel.invokeMethod<String>('getMrz');
-      print("gelen result değeri: $result");
+      print("[AmaniSDK] getMrz returned documentId: $result");
       if (result != null) {
         
-        print("Gelen JSON verisi: $result");
       try {
         var resultMap = await json.decode(json.encode(result));
-        print("Method Channel tarafında result map değeri return edildi:  $resultMap");
+        print("[AmaniSDK] getMrz result returned to caller: $resultMap");
         return resultMap;
       } catch (e) {
         print("JSON decoding failed: $e");

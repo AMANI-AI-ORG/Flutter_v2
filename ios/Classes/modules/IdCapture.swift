@@ -15,6 +15,7 @@ class IdCapture {
 
   public func start(stepID: Int, result: @escaping FlutterResult) {
     let vc = UIApplication.shared.windows.last?.rootViewController
+    print("[AmaniBridge][IDCapture] start stepID=\(stepID)")
     do {
        let moduleView = try module.start(stepId: stepID) { image in
           let data = image.pngData()
@@ -34,6 +35,7 @@ class IdCapture {
   
   @available(iOS 13, *)
  public func startNFC(nvi: AmaniSDK.NviModel?, enablePACE: Bool? = nil) async -> Bool {
+  print("[AmaniBridge][IDCapture] startNFC called")
   if let nvi = nvi {
     do {
        let result = await module.startNFC(nvi: nvi, enablePACE: enablePACE)
@@ -53,8 +55,25 @@ class IdCapture {
   }
   
   public func upload(result: @escaping FlutterResult) {
+    print("[AmaniBridge][IDCapture] upload called")
     module.upload { isSuccess in
       result(isSuccess)
+    }
+  }
+  
+  /// Uploads the captured ID and returns both the result and the created documentId.
+  /// Flutter receives: {"isSuccess": Bool, "documentId": String?}
+  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+    print("[AmaniBridge][IDCapture] uploadWithDocumentId called")
+    module.uploadWithDocumentId { isSuccess, documentId in
+      print("[AmaniBridge][IDCapture] uploadWithDocumentId result isSuccess=\(String(describing: isSuccess)) documentId=\(String(describing: documentId))")
+      let payload: [String: Any] = [
+        "isSuccess": isSuccess ?? false,
+        "documentId": documentId ?? NSNull()
+      ]
+      DispatchQueue.main.async {
+        result(payload)
+      }
     }
   }
   
@@ -72,11 +91,12 @@ class IdCapture {
     module.setIdHologramDetection(enabled: enabled)
     result(nil)
   }
-  //Get mrz fonk buraya
+  // Requests MRZ data for the captured ID; the MRZ itself arrives via mrzInfoDelegate.
   public func getMrz(result: @escaping FlutterResult) {
+    print("[AmaniBridge][IDCapture] getMrz called")
   
     self.module.getMrz { mrzData in 
-        print("MRZ DATA PRINT EDILDIGI YER: \(mrzData)")
+        print("[AmaniBridge][IDCapture] getMrz completed documentId=\(String(describing: mrzData))")
             result(mrzData)
     }
     }
