@@ -16,10 +16,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
 
   final _amanisdkPlugin = AmaniSDK();
+
+  // Shared test credentials for both platforms.
+  static const _server = "";
+  static const _customerToken = "";
+  static const _customerIdCardNumber = "";
+
   Future<void> initAmani() async {
         if(Platform.isAndroid) {
                   await _amanisdkPlugin.setConfigure(
-                  server: "",
+                  server: _server,
                   enabledFeatures: const [
                     AmaniAndroidDynamicFeature.idCapture,
                     AmaniAndroidDynamicFeature.idHologramDetection,
@@ -30,18 +36,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
 
                 final result = await _amanisdkPlugin.startAmaniSDKWithConfigure(
-                  token: "",
-                  id: "",
-            
+                  token: _customerToken,
+                  id: _customerIdCardNumber,
+                  lang: "tr",
                 );
 
                 print(result.isTokenExpired);
         } else {
           AmaniSDK()
               .initAmani(
-                  server: "",
-                  customerToken: "",
-                  customerIdCardNumber: "",
+                  server: _server,
+                  customerToken: _customerToken,
+                  customerIdCardNumber: _customerIdCardNumber,
                   useLocation: true,
                   apiVersion: AmaniApiVersion.v2,
                   lang: "tr")
@@ -104,6 +110,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.pushNamed(context, '/nfc');
                     },
                     child: const Text('NFC')),
+                OutlinedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/speech-verifier');
+                    },
+                    child: const Text('Speech Verifier')),
+                OutlinedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/signature');
+                    },
+                    child: const Text('Signature')),
                 OutlinedButton(
                     onPressed: () {
                       Navigator.pushNamed(context, '/bio-login');

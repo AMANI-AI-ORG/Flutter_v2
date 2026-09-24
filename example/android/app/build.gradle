@@ -177,3 +177,7 @@ android {
 flutter {
     source "../.."
 }
+
+dependencies {
+    implementation 'ai.amani.android:amani-speech-verifier:1.0.0'
+}

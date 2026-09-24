@@ -42,16 +42,22 @@ class _SpeechVerifierScreenState extends State<SpeechVerifierScreen> {
           ),
         ),
         androidSettings: AndroidSpeechVerifierSettings(
-          type: "XXX_ST_0",
-          serverURL: "https://dev.amani.ai",
-          token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg2NDAzMjI4LCJpYXQiOjE3ODYzOTk2MjcsImp0aSI6IjBkOTY5YzIwNWExYjQ1OWU4NTAzM2E5MjlmYTY0OWY4IiwidXNlcl9pZCI6IjM5ODQ4Yjc5LWM3NjItNGExNi1iMDFlLTdkYjlkMjJmNmNkNyIsImFwaV91c2VyIjpmYWxzZSwicHJvZmlsZV9pZCI6ImI1MTMwNDIzLWYyNmEtNGQ4NS05Y2UxLTYwNGI1OGMxOWIyMCIsImNvbXBhbnlfaWQiOiJmMTFjMDA3Yy0yMDU5LTRmNTEtYjI5ZS1hNTQxZTJhNDMzODIifQ.HrUGU3_puYuYPlm4As8gbTre9AbVjIoXk_S1VR9dGbE",
+          type: "",
+          serverURL: "",
+          token:
+              "",
           steps: _steps,
           identityAnswers: _answers,
           matchThresholdPercent: 75,
         ),
       );
 
-      final uploaded = await _module.upload();
+      final isUploaded =
+          await _module.upload(onResult: (isSuccess, documentId) {
+        debugPrint(
+            "SpeechVerifier upload: $isSuccess, documentId: $documentId");
+      });
+      final uploaded = isUploaded;
       if (!mounted) return;
       setState(() => _status = uploaded ? "Upload succeeded" : "Upload failed");
     } catch (e) {

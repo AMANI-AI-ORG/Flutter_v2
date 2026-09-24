@@ -168,6 +168,15 @@ class PoseEstimation: Module {
         }
     }
 
+    /** Uploads the pose estimation selfie and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun uploadWithDocumentId(activity: Activity, result: MethodChannel.Result) {
+        try {
+            poseEstimationModule.upload(activity as FragmentActivity, docType, result.uploadResultCallBack("PoseEstimation"))
+        } catch (e: Exception) {
+            result.uploadResultFailure("PoseEstimation", e.message)
+        }
+    }
+
     override fun setType(type: String?, result: MethodChannel.Result) {
         if (type != null) {
             this.docType = type

@@ -5,6 +5,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
   var methodChannel: FlutterMethodChannel!
   var delegateChannel: FlutterEventChannel!
   private var speechVerifierInstance: SpeechVerifier?
+  private var signatureInstance: SignatureCapture?
   static var eventHandler = DelegateEventHandler()
  
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -61,7 +62,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
            let birthDate = arguments["birthDate"] as? String,
            let expireDate = arguments["expireDate"] as? String,
            let documentNo = arguments["documentNo"] as? String {
-            print("Plugin tarafından NFC için isteğe çıkılacak: \(arguments)")
+            print("[AmaniBridge][IDCapture] Starting NFC scan")
             
             let idCapture = IdCapture()
             Task {
@@ -87,6 +88,9 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     case "uploadIDCapture":
       let idCapture = IdCapture()
       idCapture.upload(result: result)
+    case "uploadIDCaptureWithDocumentId":
+      let idCapture = IdCapture()
+      idCapture.uploadWithDocumentId(result: result)
       // get Mrz Data
     case "getMrz":
     let idCapture = IdCapture()
@@ -102,6 +106,9 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     case "uploadSelfie":
       let selfie = Selfie()
       selfie.upload(result: result)
+    case "uploadSelfieWithDocumentId":
+      let selfie = Selfie()
+      selfie.uploadWithDocumentId(result: result)
     // AutoSelfie
     case "startAutoSelfie":
       let autoSelfie = AutoSelfie()
@@ -116,6 +123,9 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     case "uploadAutoSelfie":
       let autoSelfie = AutoSelfie()
       autoSelfie.upload(result: result)
+    case "uploadAutoSelfieWithDocumentId":
+      let autoSelfie = AutoSelfie()
+      autoSelfie.uploadWithDocumentId(result: result)
     // Pose Estimation
     case "startPoseEstimation":
       let poseEstimation = PoseEstimation()
@@ -134,11 +144,15 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     case "uploadPoseEstimation":
         let poseEstimation = PoseEstimation()
         poseEstimation.upload(result: result)
+    case "uploadPoseEstimationWithDocumentId":
+        let poseEstimation = PoseEstimation()
+        poseEstimation.uploadWithDocumentId(result: result)
 
     // Speech Verifier
     case "startSpeechVerifier":
       let speechVerifier = SpeechVerifier()
-      self.speechVerifierInstance = speechVerifier   // ← EKSİK OLAN SATIR
+      // Keep the instance alive: the upload call needs the verifier built in start.
+      self.speechVerifierInstance = speechVerifier
       let iosArgs = arguments?["iosSettings"] as! String
       speechVerifier.start(settingsJSON: iosArgs, result: result)
     case "uploadSpeechVerifier":
@@ -146,6 +160,26 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
           result(isSuccess)
           self?.speechVerifierInstance = nil
         }
+    case "uploadSpeechVerifierWithDocumentId":
+        guard let speechVerifier = speechVerifierInstance else {
+          UploadResultPayload.send(isSuccess: false, documentId: nil, module: "SpeechVerifier", to: result)
+          return
+        }
+        speechVerifier.uploadWithDocumentId { [weak self] payload in
+          result(payload)
+          self?.speechVerifierInstance = nil
+        }
+    // Signature
+    case "startSignature":
+      let signature = SignatureCapture()
+      self.signatureInstance = signature
+      signature.start(arguments: arguments, result: result)
+    case "uploadSignature":
+      let signature = signatureInstance ?? SignatureCapture()
+      signature.upload(result: result)
+    case "uploadSignatureWithDocumentId":
+      let signature = signatureInstance ?? SignatureCapture()
+      signature.uploadWithDocumentId(result: result)
     // NFC
     /*
     case "iOSstartNFCWithImageData":
@@ -194,6 +228,9 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     case "iOSuploadNFC":
         let nfc = NFC()
         nfc.upload(result: result)
+    case "iOSuploadNFCWithDocumentId":
+        let nfc = NFC()
+        nfc.uploadWithDocumentId(result: result)
     case "initBioLogin":
       print("initBioLogin")
         // let bioLogin = BioLogin.shared
@@ -239,29 +276,28 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       documentCapture.setType(type: documentType, result: result)
     case "documentCaptureUpload":
       let documentCapture = DocumentCapture()
-      // possible keys: data, dataType
-        if let files: [[String: Any]] = arguments!["files"] as? [[String: Any]] {
-            let filesData = files.map { mappedData in
-              let fileData = mappedData["data"] as! FlutterStandardTypedData;
-              let fileType = mappedData["dataType"] as! String;
-
-              return FileWithType(data: fileData.data, dataType: fileType)
-            }
-            if filesData.isEmpty {
-              documentCapture.upload(files: nil, result: result)
-            } else {
-              documentCapture.upload(files: filesData, result: result)
-            }
-      } else {
-        documentCapture.upload(files: nil, result: result)
-      }
-  
-
-
+      documentCapture.upload(files: documentFiles(from: arguments), result: result)
+    case "documentCaptureUploadWithDocumentId":
+      let documentCapture = DocumentCapture()
+      documentCapture.uploadWithDocumentId(files: documentFiles(from: arguments), result: result)
 
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  /// Maps the optional "files" argument (list of {data, dataType}) to Core SDK files.
+  /// Returns nil when no files are given, so the captured document is uploaded instead.
+  private func documentFiles(from arguments: [String: Any]?) -> [FileWithType]? {
+    guard let files = arguments?["files"] as? [[String: Any]] else { return nil }
+    let filesData: [FileWithType] = files.compactMap { mappedData in
+      guard
+        let fileData = mappedData["data"] as? FlutterStandardTypedData,
+        let fileType = mappedData["dataType"] as? String
+      else { return nil }
+      return FileWithType(data: fileData.data, dataType: fileType)
+    }
+    return filesData.isEmpty ? nil : filesData
   }
 
   private func initAmani(server: String,
@@ -308,11 +344,13 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     }
   }
     private func getCustomerInfo(result: @escaping FlutterResult) {
-     Amani.sharedInstance.customerInfo().getCustomer(forceUpdateCallback: {
-        info in
-        guard let customerInfo = info else {
-          return
-        }
+        // Use the customer data cached by the SDK instead of getCustomer(forceUpdateCallback:).
+        // The forced fetch runs on CustomerInfo's own service instance, and a successful
+        // getCustomer makes that instance the SSE listener (ServiceManager.shared.delegate).
+        // That instance has no AmaniServiceDelegate, so mrz_result / step_results events
+        // stop reaching Amani and mrzInfoDelegate never fires. initAmani already caches a
+        // fresh customer, and step_results SSE events keep its rule statuses up to date.
+        let customerInfo = Amani.sharedInstance.customerInfo().getCustomer()
         var rulesArray: [[String: Any]] = []
         if let rules = customerInfo.rules {
             for rule in rules {
@@ -343,7 +381,6 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         ]
         
         result(customerInfoDict)
-      })
   }
   
 }

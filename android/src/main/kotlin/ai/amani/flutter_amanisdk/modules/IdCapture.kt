@@ -127,6 +127,20 @@ class IdCapture : Module {
         }
     }
 
+    /** Uploads the captured ID and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun uploadWithDocumentId(activity: Activity, result: Result) {
+        val type = docType
+        if (type.isNullOrEmpty()) {
+            result.error("30003", "Type not set.", "You have to call setType on idCapture before calling this method.")
+            return
+        }
+        try {
+            idCaptureModule.upload(activity as FragmentActivity, type, result.uploadResultCallBack("IDCapture"))
+        } catch (e: Exception) {
+            result.uploadResultFailure("IDCapture", e.message)
+        }
+    }
+
     override fun setType(type: String?, result: Result) {
         this.docType = type
         Log.d("AmaniSDK", "setTypeCalled!")

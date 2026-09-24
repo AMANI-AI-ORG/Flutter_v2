@@ -1,3 +1,4 @@
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_amanisdk/flutter_amanisdk_method_channel.dart';
 
@@ -68,12 +69,24 @@ class AndroidNFCCapture {
     await _methodChannel.androidSetNFCType(type);
   }
 
-  Future<bool> upload() async {
-    try {
-      final bool isDone = await _methodChannel.androidUploadNFC();
-      return isDone;
-    } catch (err) {
-      rethrow;
+  /// Uploads the NFC data and returns `true` when the upload succeeds.
+  ///
+  /// Pass [onResult] to also receive the `documentId` of the document the
+  /// upload created:
+  ///
+  /// ```dart
+  /// final isSuccess = await nfcCapture.upload(
+  ///   onResult: (isSuccess, documentId) {
+  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///   },
+  /// );
+  /// ```
+  Future<bool> upload({UploadResultCallback? onResult}) async {
+    if (onResult == null) {
+      return await _methodChannel.androidUploadNFC();
     }
+    final response = await _methodChannel.androidUploadNFCWithDocumentId();
+    return _methodChannel.deliverUploadResult(response, onResult);
   }
+
 }

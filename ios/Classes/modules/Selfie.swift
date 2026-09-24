@@ -42,5 +42,12 @@ class Selfie {
       result(isSuccess)
     }
   }
+
+  /// Uploads the selfie and returns {"isSuccess": Bool, "documentId": String?}.
+  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+    module.upload { (isSuccess: Bool?, documentId: String?) in
+      UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "Selfie", to: result)
+    }
+  }
   
 }

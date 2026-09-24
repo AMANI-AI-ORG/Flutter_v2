@@ -224,6 +224,14 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         IdCapture.instance.upload(act, result)
       }
 
+      "uploadIDCaptureWithDocumentId" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        IdCapture.instance.uploadWithDocumentId(act, result)
+      }
+
       "idCaptureAndroidBackPressHandle" -> {
         val act = activity ?: run {
           result.error("NO_ACTIVITY", "Activity is null", null)
@@ -262,6 +270,14 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           return
         }
         Selfie.instance.upload(act, result)
+      }
+
+      "uploadSelfieWithDocumentId" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        Selfie.instance.uploadWithDocumentId(act, result)
       }
 
       // -------------------------
@@ -303,6 +319,14 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         AutoSelfie.instance.upload(act, result)
       }
 
+      "uploadAutoSelfieWithDocumentId" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        AutoSelfie.instance.uploadWithDocumentId(act, result)
+      }
+
       // -------------------------
       // Pose Estimation
       // -------------------------
@@ -342,6 +366,14 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         PoseEstimation.instance.upload(act, result)
       }
 
+      "uploadPoseEstimationWithDocumentId" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        PoseEstimation.instance.uploadWithDocumentId(act, result)
+      }
+
       "setPoseEstimationVideoRecording" -> {
         val isEnabled = call.argument<Boolean>("enabled") ?: false
         PoseEstimation.instance.setVideoRecording(isEnabled, result)
@@ -350,23 +382,37 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // -------------------------
       // Speech Verifier
       // -------------------------
-      "startSpeechVerifier" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
-          return
-        }
-        val androidSettings = call.argument<String>("androidSettings")
-        if (androidSettings.isNullOrBlank()) {
+    "startSpeechVerifier" -> {
+      val act = activity ?: run {
+        result.error("NO_ACTIVITY", "Activity is null", null)
+        return
+     }
+    
+      if (!isSpeechVerifierAvailable()) {
+        result.error(
+            "SPEECH_VERIFIER_UNAVAILABLE",
+            "Speech Verifier module is not included. Add 'ai.amani.android:amani-speech-verifier' to your app dependencies.",
+            null
+        )
+        return
+      }
+      val androidSettings = call.argument<String>("androidSettings")
+      if (androidSettings.isNullOrBlank()) {
           result.error("Missing Settings", "androidSettings is required", null)
           return
-        }
-        val module = SpeechVerifierModule(act)
-        speechVerifierModule = module
-        module.start(androidSettings, result)
       }
+      val module = SpeechVerifierModule(act)
+      speechVerifierModule = module
+      module.start(androidSettings, result)
+    }
 
       "uploadSpeechVerifier" -> {
         speechVerifierModule?.upload(result) ?: result.success(false)
+      }
+
+      "uploadSpeechVerifierWithDocumentId" -> {
+        speechVerifierModule?.uploadWithDocumentId(result)
+          ?: result.success(mapOf("isSuccess" to false, "documentId" to null))
       }
 
       "speechVerifierAndroidBackPressHandle" -> {
@@ -420,8 +466,41 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         NFC.instance.upload(result)
       }
 
+      "androidUploadNFCWithDocumentId" -> {
+        NFC.instance.uploadWithDocumentId(result)
+      }
+
       // -------------------------
-      // BioLogin (modül içleri sende ayrıca düzeltilmeli olabilir)
+      // Signature
+      // -------------------------
+      "startSignature" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        @Suppress("UNCHECKED_CAST")
+        val settings = call.arguments as? Map<String, Any?>
+        SignatureCapture.instance.start(settings, act, result)
+      }
+
+      "uploadSignature" -> {
+        SignatureCapture.instance.upload(result)
+      }
+
+      "uploadSignatureWithDocumentId" -> {
+        SignatureCapture.instance.uploadWithDocumentId(result)
+      }
+
+      "signatureAndroidBackPressHandle" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        SignatureCapture.instance.backPressHandle(act, result)
+      }
+
+      // -------------------------
+      // BioLogin
       // -------------------------
       "initBioLogin" -> {
         val act = activity ?: run {
@@ -540,6 +619,20 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           DocumentCapture.instance.setFiles(files)
         }
         DocumentCapture.instance.upload(act, result)
+      }
+
+      "documentCaptureUploadWithDocumentId" -> {
+        val act = activity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null", null)
+          return
+        }
+        val files = call.argument<List<Map<String, Any>>>("files")
+        if (files.isNullOrEmpty()) {
+          DocumentCapture.instance.clearFiles()
+        } else {
+          DocumentCapture.instance.setFiles(files)
+        }
+        DocumentCapture.instance.uploadWithDocumentId(act, result)
       }
 
       "documentCaptureBackPressHandle" -> {
@@ -816,5 +909,14 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         result.success(customerInfoDict)
       }
     })
+  }
+
+  private fun isSpeechVerifierAvailable(): Boolean {
+    return try {
+        Class.forName("ai.amani.speechverifier.SpeechVerifier")
+        true
+    } catch (e: ClassNotFoundException) {
+        false
+    }
   }
 }

@@ -39,7 +39,7 @@ extension DelegateEventHandler: AmaniDelegate {
   public func onProfileStatus(customerId: String, profile: AmaniSDK.wsProfileStatusModel) {
     do {
       let jsonData = try JSONEncoder().encode(profile)
-      print("onProfileStatus kısmına girdi jsonData \(jsonData)")
+      print("[AmaniBridge] onProfileStatus received (\(jsonData.count) bytes)")
       emit(["type": "profileStatus", "data": String(data: jsonData, encoding: .utf8)])
     } catch {
       emit(["type": "error", "data": ["type": "JSONConversation", "errors": ["error_code": "30011", "error_message": "\(error.localizedDescription)"]] as [String: Any]])
@@ -49,7 +49,7 @@ extension DelegateEventHandler: AmaniDelegate {
   public func onStepModel(customerId: String, rules: [AmaniSDK.KYCRuleModel]?) {
     do {
       let jsonData = try JSONEncoder().encode(["rules": rules])
-      print("OnStepModel kısmına girdi jsonData \(jsonData)")
+      print("[AmaniBridge] onStepModel received (\(jsonData.count) bytes)")
       emit(["type": "stepModel", "data": String(data: jsonData, encoding: .utf8)])
     } catch {
       emit(["type": "error", "data": ["type": "JSONConversation", "errors": ["error_code": "30011", "error_message": "\(error.localizedDescription)"]] as [String: Any]])
@@ -70,7 +70,7 @@ extension DelegateEventHandler: AmaniDelegate {
 }
 extension DelegateEventHandler: mrzInfoDelegate {
    func mrzInfo(_ mrz: AmaniSDK.MrzModel?, documentId: String?) {
-    print("MrzInfoDelegate value: \(mrz)")
+    print("[AmaniBridge][IDCapture] mrzInfoDelegate fired documentId=\(String(describing: documentId)) hasMrz=\(mrz != nil)")
     guard let mrz = mrz else {
      
       emit(["type": "error", "data": ["type": "JSONConversion", "errors": ["error_code": "30022", "error_message": "mrz model is nil"]] as [String: Any]])

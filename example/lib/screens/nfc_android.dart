@@ -128,7 +128,10 @@ class AndroidNFCState extends State<AndroidNFC> {
                       if (_isCompleted == false) {
                         return;
                       } else {
-                        _nfcCapture.upload();
+                        _nfcCapture.upload(onResult: (isSuccess, documentId) {
+                          debugPrint(
+                              "NFC upload: $isSuccess, documentId: $documentId");
+                        }).then((isUploaded) {});
                       }
                     },
                     child: const Text("Upload (last step)"))

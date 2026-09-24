@@ -25,7 +25,7 @@ class _IdCaptureScreenState extends State<IdCaptureScreen> {
       await _idCaptureModule.setType("TUR_ID_1");
       debugPrint("setType ok");
 
-      await _idCaptureModule.setHologramDetection(true);
+      await _idCaptureModule.setHologramDetection(false);
       debugPrint("setHologramDetection ok");
 
       await _idCaptureModule.setVideoRecording(true);
@@ -107,7 +107,7 @@ class _IdCaptureScreenState extends State<IdCaptureScreen> {
 }
   // Future<void> initSDK() async {
   //   await _idCaptureModule.setType("TUR_ID_1");
-  //   await _idCaptureModule.setHologramDetection(true);
+  //   await _idCaptureModule.setHologramDetection(false);
   //   await _idCaptureModule.setVideoRecording(true);
   //   await _idCaptureModule.setManualButtonTimeout(15);
   // }

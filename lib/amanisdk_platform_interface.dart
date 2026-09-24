@@ -103,6 +103,11 @@ abstract class AmaniSDKPlatform extends PlatformInterface {
     throw UnimplementedError('uploadIDCapture() has not been implemented.');
   }
 
+  Future<Map<String, dynamic>> uploadIDCaptureWithDocumentId() {
+    throw UnimplementedError(
+        'uploadIDCaptureWithDocumentId() has not been implemented.');
+  }
+
   Future<void> setIDCaptureManualButtonTimeout(int timeout) {
     throw UnimplementedError(
         'setIDCaptureManualButtonTimeout() has not been implemented.');
@@ -339,5 +344,53 @@ abstract class AmaniSDKPlatform extends PlatformInterface {
     String? sharedSecret,
   }) {
     throw UnimplementedError('initAmaniWithEmail() has not been implemented.');
+  }
+
+  // MARK: Upload with documentId
+
+  Future<Map<String, dynamic>> uploadSelfieWithDocumentId() {
+    throw UnimplementedError('uploadSelfieWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> uploadAutoSelfieWithDocumentId() {
+    throw UnimplementedError('uploadAutoSelfieWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> uploadPoseEstimationWithDocumentId() {
+    throw UnimplementedError('uploadPoseEstimationWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> uploadSpeechVerifierWithDocumentId() {
+    throw UnimplementedError('uploadSpeechVerifierWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> iosUploadNFCCaptureWithDocumentId() {
+    throw UnimplementedError('iosUploadNFCCaptureWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> documentCaptureUploadWithDocumentId(List<Map<String, dynamic>>? files) {
+    throw UnimplementedError('documentCaptureUploadWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> uploadSignatureWithDocumentId() {
+    throw UnimplementedError('uploadSignatureWithDocumentId() has not been implemented.');
+  }
+
+  Future<Map<String, dynamic>> androidUploadNFCWithDocumentId() {
+    throw UnimplementedError('androidUploadNFCWithDocumentId() has not been implemented.');
+  }
+
+  // MARK: Signature
+
+  Future<bool> androidSignatureBackPressHandle() {
+    throw UnimplementedError('androidSignatureBackPressHandle() has not been implemented.');
+  }
+
+  Future<dynamic> startSignature(Map<String, dynamic> settings) {
+    throw UnimplementedError('startSignature() has not been implemented.');
+  }
+
+  Future<bool> uploadSignature() {
+    throw UnimplementedError('uploadSignature() has not been implemented.');
   }
 }

@@ -118,6 +118,11 @@ class DocumentCapture: Module {
         } as ArrayList<FileWithType>
     }
 
+    /** Drops files set by an earlier call, so the captured document is uploaded instead. */
+    fun clearFiles() {
+        filesToUpload = null
+    }
+
     override fun upload(activity: Activity, result: MethodChannel.Result) {
 
         if (docType == null) {
@@ -136,6 +141,27 @@ class DocumentCapture: Module {
             Amani.sharedInstance().Document().upload(activity, docType!!, filesToUpload!!) {
                 result.success(it)
             }
+        }
+    }
+
+    /** Uploads the captured document or the set files, and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun uploadWithDocumentId(activity: Activity, result: MethodChannel.Result) {
+        val type = docType
+        if (type == null) {
+            result.error("30013", "You must call setType before calling start method", null)
+            return
+        }
+        val fa = activity as FragmentActivity
+        val callBack = result.uploadResultCallBack("DocumentCapture")
+        try {
+            val files = filesToUpload
+            if (files == null) {
+                Amani.sharedInstance().Document().upload(fa, type, callBack)
+            } else {
+                Amani.sharedInstance().Document().upload(fa, type, files, callBack)
+            }
+        } catch (e: Exception) {
+            result.uploadResultFailure("DocumentCapture", e.message)
         }
     }
 

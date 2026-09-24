@@ -110,6 +110,13 @@ class PoseEstimation {
       result(isSuccess)
     }
   }
+
+  /// Uploads the pose estimation images and returns {"isSuccess": Bool, "documentId": String?}.
+  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+    poseEstimation.upload { (isSuccess: Bool?, documentId: String?) in
+      UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "PoseEstimation", to: result)
+    }
+  }
   
   public func setVideoRecording(enabled: Bool, result: @escaping FlutterResult) {
     module.setVideoRecording(enabled: enabled)

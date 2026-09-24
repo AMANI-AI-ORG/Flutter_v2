@@ -1,3 +1,4 @@
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'dart:typed_data';
 
 import 'package:flutter_amanisdk/common/models/file_type.dart';
@@ -27,25 +28,31 @@ class DocumentCapture {
     }
   }
 
-  Future<bool> startUploadWithFiles(List<FileTypeModel>? files) async {
-    List<Map<String, dynamic>>? fileList;
-
-    if (files != null) {
-      fileList = files.map((element) {
-        return element.toMap();
-      }).toList();
-    }
-
-    try {
+  /// Uploads the captured document, or the given [files] instead, and returns
+  /// `true` when the upload succeeds. Pass `null` as [files] to upload the
+  /// captured document.
+  ///
+  /// Pass [onResult] to also receive the `documentId` of the document the
+  /// upload created:
+  ///
+  /// ```dart
+  /// final isSuccess = await documentCapture.startUploadWithFiles(
+  ///   null,
+  ///   onResult: (isSuccess, documentId) {
+  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///   },
+  /// );
+  /// ```
+  Future<bool> startUploadWithFiles(List<FileTypeModel>? files,
+      {UploadResultCallback? onResult}) async {
+    final fileList = files?.map((element) => element.toMap()).toList();
+    if (onResult == null) {
       final uploadState = await _methodChannel.documentCaptureUpload(fileList);
-      if (uploadState == true) {
-        return uploadState;
-      } else {
-        return false;
-      }
-    } catch (err) {
-      rethrow;
+      return uploadState == true;
     }
+    final response =
+        await _methodChannel.documentCaptureUploadWithDocumentId(fileList);
+    return _methodChannel.deliverUploadResult(response, onResult);
   }
 
   Future<void> setType(String type) async {
