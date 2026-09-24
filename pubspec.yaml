@@ -1,6 +1,6 @@
 name: flutter_amanisdk
 description: Flutter bindings for v2 SDK of Amani
-version: 2.0.16
+version: 2.2.0
 homepage:
 
 environment:
