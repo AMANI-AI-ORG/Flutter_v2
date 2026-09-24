@@ -119,6 +119,17 @@ class SpeechVerifier {
       result(isSuccess ?? false)
     }
   }
+
+  /// Uploads the speech verification and returns {"isSuccess": Bool, "documentId": String?}.
+  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+    guard let module = module else {
+      UploadResultPayload.send(isSuccess: false, documentId: nil, module: "SpeechVerifier", to: result)
+      return
+    }
+    module.upload(location: nil) { (isSuccess: Bool?, documentId: String?) in
+      UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "SpeechVerifier", to: result)
+    }
+  }
 }
 
 // MARK: - Flutter-side settings decoding

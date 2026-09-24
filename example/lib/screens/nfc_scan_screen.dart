@@ -19,15 +19,14 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
   final _amani = AmaniSDK();
   late final _idCapture = _amani.getIDCapture();
 
- 
-  String? _mrzDocumentId; 
-  String? _mrzRawPayload; 
-  Map<String, dynamic> mrzResult = {}; 
+  String? _mrzDocumentId;
+  String? _mrzRawPayload;
+  Map<String, dynamic> mrzResult = {};
 
   // UI state
   String _error = "";
-  bool _isFetchingMrz = false; 
-  bool _isStartingNfc = false; 
+  bool _isFetchingMrz = false;
+  bool _isStartingNfc = false;
 
   bool get _isMrzReady => (mrzResult.isNotEmpty);
 
@@ -95,9 +94,7 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
 
       setState(() {
         _mrzDocumentId = documentId;
-        
       });
-      
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -108,14 +105,12 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
   }
 
   Future<void> _handleMrzInfoDelegate(dynamic data) async {
-   
     String? raw;
     Map<String, dynamic>? directMap;
 
     if (data is String) {
       raw = data;
     } else if (data is Map) {
-      
       directMap = Map<String, dynamic>.from(data as Map);
     } else if (data != null) {
       raw = data.toString();
@@ -143,11 +138,8 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
       mrzResult = parsed;
       _error = "";
 
-     
       _isFetchingMrz = false;
     });
-
-   
   }
 
   String _extractErrorMessage(dynamic data) {
@@ -155,7 +147,6 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
       return (data['error_message'] ?? data.toString()).toString();
     }
     if (data is String) {
-    
       try {
         final decoded = jsonDecode(data);
         return decoded.toString();
@@ -166,67 +157,68 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
     return data?.toString() ?? "Unknown error";
   }
 
-
   Future<void> _onTapStartNFC() async {
-  if (_isStartingNfc) return;
+    if (_isStartingNfc) return;
 
-  if (mrzResult.isEmpty) {
-    setState(() => _error = "MRZ verisi henüz gelmedi. Lütfen bekleyin.");
-    return;
-  }
-
-  setState(() {
-    _error = "";
-    _isStartingNfc = true;
-  });
-
-  try {
-  
-    if (mrzResult.isEmpty && _mrzRawPayload != null && _mrzRawPayload!.isNotEmpty) {
-      final parsed = await _idCapture.processNFC(_mrzRawPayload!);
-      if (mounted) {
-        setState(() => mrzResult = parsed);
-      }
-    }
-
-    final bool isDone = await _idCapture.iosStartNFC(mrzResult);
-
-    if (!mounted) return;
-
-    if (!isDone) {
-      setState(() {
-        _isStartingNfc = false;
-        _error = "NFC başlatılamadı. (DocId/MRZ kontrol edin)";
-      });
+    if (mrzResult.isEmpty) {
+      setState(() => _error = "MRZ verisi henüz gelmedi. Lütfen bekleyin.");
       return;
     }
 
-    final uploadResult = await _idCapture.uploadWithDocumentId();
-    debugPrint(
-        "IDCapture upload: ${uploadResult.isSuccess}, documentId: ${uploadResult.documentId}");
-    final bool isSuccess = uploadResult.isSuccess;
-
-    if (!mounted) return;
-
     setState(() {
-      _isStartingNfc = false;
+      _error = "";
+      _isStartingNfc = true;
     });
 
-    if (isSuccess) {
-      Navigator.pushReplacementNamed(context, '/');
-    } else {
+    try {
+      if (mrzResult.isEmpty &&
+          _mrzRawPayload != null &&
+          _mrzRawPayload!.isNotEmpty) {
+        final parsed = await _idCapture.processNFC(_mrzRawPayload!);
+        if (mounted) {
+          setState(() => mrzResult = parsed);
+        }
+      }
+
+      final bool isDone = await _idCapture.iosStartNFC(mrzResult);
+
+      if (!mounted) return;
+
+      if (!isDone) {
+        setState(() {
+          _isStartingNfc = false;
+          _error = "NFC başlatılamadı. (DocId/MRZ kontrol edin)";
+        });
+        return;
+      }
+
+      final isUploaded =
+          await _idCapture.upload(onResult: (isSuccess, documentId) {
+        debugPrint("IDCapture upload: $isSuccess, documentId: $documentId");
+      });
+      final bool isSuccess = isUploaded;
+
+      if (!mounted) return;
+
       setState(() {
-        _error = "Upload başarısız.";
+        _isStartingNfc = false;
+      });
+
+      if (isSuccess) {
+        Navigator.pushReplacementNamed(context, '/');
+      } else {
+        setState(() {
+          _error = "Upload başarısız.";
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isStartingNfc = false;
+        _error = "Başlatma hatası: $e";
       });
     }
-  } catch (e) {
-    if (!mounted) return;
-    setState(() {
-      _isStartingNfc = false;
-      _error = "Başlatma hatası: $e";
-    });
   }
-}
 
   @override
   void dispose() {
@@ -278,13 +270,15 @@ class _NFCScanScreenState extends State<NFCScanScreen> {
             left: 16,
             right: 16,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48)),
               onPressed: buttonEnabled ? _onTapMainButton : null,
               child: _isStartingNfc
                   ? const SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
                     )
                   : Text(buttonLabel),
             ),

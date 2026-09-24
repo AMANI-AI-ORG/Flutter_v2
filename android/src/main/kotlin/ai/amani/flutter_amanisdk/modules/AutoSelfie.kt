@@ -120,6 +120,15 @@ class AutoSelfie: Module {
             }
     }
 
+    /** Uploads the auto selfie and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun uploadWithDocumentId(activity: Activity, result: MethodChannel.Result) {
+        try {
+            autoSelfieModule.upload(activity as FragmentActivity, docType, result.uploadResultCallBack("AutoSelfie"))
+        } catch (e: Exception) {
+            result.uploadResultFailure("AutoSelfie", e.message)
+        }
+    }
+
     override fun setType(type: String?, result: MethodChannel.Result) {
         if (type != null) {
             this.docType = type

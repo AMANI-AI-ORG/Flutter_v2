@@ -12,6 +12,7 @@ import 'package:flutter_amanisdk_example/screens/nfc_ios.dart';
 import 'package:flutter_amanisdk_example/screens/nfc_scan_screen.dart';
 import 'package:flutter_amanisdk_example/screens/pose_estimation.dart';
 import 'package:flutter_amanisdk_example/screens/selfie.dart';
+import 'package:flutter_amanisdk_example/screens/signature.dart';
 import 'package:flutter_amanisdk_example/screens/speech_verifier.dart';
 
 void main() {
@@ -32,6 +33,7 @@ void main() {
       '/document-capture': (ctx) => const DocumentCaputureScreen(),
       '/nfc-scan-screen': (ctx) => const NFCScanScreen(),
       '/speech-verifier': (ctx) => const SpeechVerifierScreen(),
+      '/signature': (ctx) => const SignatureScreen(),
     },
   ));
 }

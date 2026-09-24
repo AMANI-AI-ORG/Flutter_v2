@@ -118,6 +118,20 @@ class Selfie: Module {
         }
     }
 
+    /** Uploads the selfie and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun uploadWithDocumentId(activity: Activity, result: MethodChannel.Result) {
+        val fa = activity as? FragmentActivity
+            ?: run {
+                result.error("30020", "Activity must be FragmentActivity", null)
+                return
+            }
+        try {
+            selfieModule.upload(fa, docType, result.uploadResultCallBack("Selfie"))
+        } catch (e: Exception) {
+            result.uploadResultFailure("Selfie", e.message)
+        }
+    }
+
     override fun setType(type: String?, result: MethodChannel.Result) {
         this.docType = type ?: this.docType
         result.success(null)

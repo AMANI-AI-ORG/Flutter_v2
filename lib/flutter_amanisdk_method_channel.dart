@@ -1,3 +1,4 @@
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -86,15 +87,8 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
   }
 
   @override
-  Future<Map<String, dynamic>> uploadIDCaptureWithDocumentId() async {
-    try {
-      final Map<dynamic, dynamic>? response = await methodChannel
-          .invokeMethod<Map<dynamic, dynamic>>('uploadIDCaptureWithDocumentId');
-      return Map<String, dynamic>.from(response ?? const {});
-    } catch (err) {
-      rethrow;
-    }
-  }
+  Future<Map<String, dynamic>> uploadIDCaptureWithDocumentId() =>
+      _invokeUploadWithDocumentId('uploadIDCaptureWithDocumentId');
 
 @override
     Future<String?> getMrzRequest() async {
@@ -716,5 +710,80 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     } catch (err) {
       rethrow;
     }
+  }
+
+  // MARK: Upload with documentId
+
+  /// Passes a native upload payload to [onResult] and returns its `isSuccess`.
+  bool deliverUploadResult(
+      Map<String, dynamic> response, UploadResultCallback onResult) {
+    final bool isSuccess = response['isSuccess'] == true;
+    final dynamic documentId = response['documentId'];
+    onResult(
+      isSuccess,
+      documentId is String && documentId.isNotEmpty ? documentId : null,
+    );
+    return isSuccess;
+  }
+
+  /// Invokes a native `upload...WithDocumentId` method.
+  /// Native side returns {"isSuccess": Bool, "documentId": String?}.
+  Future<Map<String, dynamic>> _invokeUploadWithDocumentId(String method,
+      [Map<String, dynamic>? arguments]) async {
+    final Map<dynamic, dynamic>? response = await methodChannel
+        .invokeMethod<Map<dynamic, dynamic>>(method, arguments);
+    return Map<String, dynamic>.from(response ?? const {});
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadSelfieWithDocumentId() =>
+      _invokeUploadWithDocumentId('uploadSelfieWithDocumentId');
+
+  @override
+  Future<Map<String, dynamic>> uploadAutoSelfieWithDocumentId() =>
+      _invokeUploadWithDocumentId('uploadAutoSelfieWithDocumentId');
+
+  @override
+  Future<Map<String, dynamic>> uploadPoseEstimationWithDocumentId() =>
+      _invokeUploadWithDocumentId('uploadPoseEstimationWithDocumentId');
+
+  @override
+  Future<Map<String, dynamic>> uploadSpeechVerifierWithDocumentId() =>
+      _invokeUploadWithDocumentId('uploadSpeechVerifierWithDocumentId');
+
+  @override
+  Future<Map<String, dynamic>> iosUploadNFCCaptureWithDocumentId() =>
+      _invokeUploadWithDocumentId('iOSuploadNFCWithDocumentId');
+
+  @override
+  Future<Map<String, dynamic>> documentCaptureUploadWithDocumentId(List<Map<String, dynamic>>? files) =>
+      _invokeUploadWithDocumentId('documentCaptureUploadWithDocumentId', {'files': files});
+
+  @override
+  Future<Map<String, dynamic>> uploadSignatureWithDocumentId() =>
+      _invokeUploadWithDocumentId('uploadSignatureWithDocumentId');
+
+  @override
+  Future<Map<String, dynamic>> androidUploadNFCWithDocumentId() =>
+      _invokeUploadWithDocumentId('androidUploadNFCWithDocumentId');
+
+  // MARK: Signature
+
+  @override
+  Future<bool> androidSignatureBackPressHandle() async {
+    final bool? res =
+        await methodChannel.invokeMethod<bool>('signatureAndroidBackPressHandle');
+    return res ?? true;
+  }
+
+  @override
+  Future<dynamic> startSignature(Map<String, dynamic> settings) async {
+    return await methodChannel.invokeMethod<dynamic>('startSignature', settings);
+  }
+
+  @override
+  Future<bool> uploadSignature() async {
+    final bool? isDone = await methodChannel.invokeMethod<bool>('uploadSignature');
+    return isDone ?? false;
   }
 }

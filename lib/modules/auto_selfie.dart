@@ -1,3 +1,4 @@
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'dart:typed_data';
 
 import 'package:flutter_amanisdk/common/models/android/auto_selfie_settings.dart';
@@ -27,13 +28,24 @@ class AutoSelfie {
     }
   }
 
-  Future<bool> upload() async {
-    try {
-      final bool isDone = await _methodChannel.uploadAutoSelfie();
-      return isDone;
-    } catch (err) {
-      rethrow;
+  /// Uploads the captured auto selfie and returns `true` when the upload succeeds.
+  ///
+  /// Pass [onResult] to also receive the `documentId` of the document the
+  /// upload created:
+  ///
+  /// ```dart
+  /// final isSuccess = await autoSelfie.upload(
+  ///   onResult: (isSuccess, documentId) {
+  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///   },
+  /// );
+  /// ```
+  Future<bool> upload({UploadResultCallback? onResult}) async {
+    if (onResult == null) {
+      return await _methodChannel.uploadAutoSelfie();
     }
+    final response = await _methodChannel.uploadAutoSelfieWithDocumentId();
+    return _methodChannel.deliverUploadResult(response, onResult);
   }
 
   Future<void> setType(String type) async {

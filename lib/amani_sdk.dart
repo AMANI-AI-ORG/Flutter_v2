@@ -15,6 +15,7 @@ import 'package:flutter_amanisdk/modules/nfc_capture_android.dart';
 import 'package:flutter_amanisdk/modules/nfc_capture_ios.dart';
 import 'package:flutter_amanisdk/modules/pose_estimation.dart';
 import 'package:flutter_amanisdk/modules/selfie.dart';
+import 'package:flutter_amanisdk/modules/signature.dart';
 import 'package:flutter_amanisdk/modules/speech_verifier.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -81,6 +82,11 @@ class AmaniSDK {
   /// Returns [DocumentCapture] module
   DocumentCapture getDocumentCapture() {
     return DocumentCapture(_methodChannel);
+  }
+
+  /// Returns [Signature] module
+  Signature getSignature() {
+    return Signature(_methodChannel);
   }
 
   /// Initializes the SDK

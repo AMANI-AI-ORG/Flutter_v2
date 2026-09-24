@@ -65,15 +65,8 @@ class IdCapture {
   /// Flutter receives: {"isSuccess": Bool, "documentId": String?}
   public func uploadWithDocumentId(result: @escaping FlutterResult) {
     print("[AmaniBridge][IDCapture] uploadWithDocumentId called")
-    module.uploadWithDocumentId { isSuccess, documentId in
-      print("[AmaniBridge][IDCapture] uploadWithDocumentId result isSuccess=\(String(describing: isSuccess)) documentId=\(String(describing: documentId))")
-      let payload: [String: Any] = [
-        "isSuccess": isSuccess ?? false,
-        "documentId": documentId ?? NSNull()
-      ]
-      DispatchQueue.main.async {
-        result(payload)
-      }
+    module.upload { (isSuccess: Bool?, documentId: String?) in
+      UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "IDCapture", to: result)
     }
   }
   

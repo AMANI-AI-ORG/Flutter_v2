@@ -1,3 +1,4 @@
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'dart:typed_data';
 
 import 'package:flutter_amanisdk/common/models/speech_verifier_settings.dart';
@@ -26,13 +27,24 @@ class SpeechVerifier {
     }
   }
 
-  Future<bool> upload() async {
-    try {
-      final bool isDone = await _methodChannel.uploadSpeechVerifier();
-      return isDone;
-    } catch (err) {
-      rethrow;
+  /// Uploads the speech verification and returns `true` when the upload succeeds.
+  ///
+  /// Pass [onResult] to also receive the `documentId` of the document the
+  /// upload created:
+  ///
+  /// ```dart
+  /// final isSuccess = await speechVerifier.upload(
+  ///   onResult: (isSuccess, documentId) {
+  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///   },
+  /// );
+  /// ```
+  Future<bool> upload({UploadResultCallback? onResult}) async {
+    if (onResult == null) {
+      return await _methodChannel.uploadSpeechVerifier();
     }
+    final response = await _methodChannel.uploadSpeechVerifierWithDocumentId();
+    return _methodChannel.deliverUploadResult(response, onResult);
   }
 
   Future<bool> androidBackButtonHandle() async {

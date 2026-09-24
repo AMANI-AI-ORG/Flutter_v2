@@ -22,6 +22,14 @@ class _NFCConfrimScreenState extends State<NFCConfrimScreen> {
   final _androidNFCCapture = AmaniSDK().getAndroidNFCCapture();
 
   @override
+  void dispose() {
+    if (Platform.isAndroid) {
+      _androidNFCCapture.stopNFCListener();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -54,9 +62,13 @@ class _NFCConfrimScreenState extends State<NFCConfrimScreen> {
                                 _HasNfc = isCaptureComplete;
                                 _uploadState = true;
                               });
-                              _idCapture.upload().then((uploadState) {
+                              _idCapture.upload(
+                                  onResult: (isSuccess, documentId) {
+                                debugPrint(
+                                    "IDCapture upload: $isSuccess, documentId: $documentId");
+                              }).then((isUploaded) {
                                 setState(() {
-                                  _uploadState = uploadState;
+                                  _uploadState = isUploaded;
                                 });
                                 Navigator.pushReplacementNamed(context, '/');
                               });

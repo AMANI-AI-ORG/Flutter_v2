@@ -41,13 +41,27 @@ class DocumentCapture {
 
   func upload(files: [FileWithType]?, result: @escaping FlutterResult) {
     if let files = files {
-      module.upload(location: nil, files: files) { uploadRes, _ in
+      module.upload(location: nil, files: files) { (uploadRes: Bool?, _: [String: Any]?) in
         result(uploadRes)
       }
     } else {
       module.upload(completion: { uploadRes in
         result(uploadRes)
       })
+    }
+  }
+
+  /// Uploads the captured document (or the given files) and returns
+  /// {"isSuccess": Bool, "documentId": String?}.
+  func uploadWithDocumentId(files: [FileWithType]?, result: @escaping FlutterResult) {
+    if let files = files {
+      module.upload(location: nil, files: files) { (isSuccess: Bool?, documentId: String?) in
+        UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "DocumentCapture", to: result)
+      }
+    } else {
+      module.upload { (isSuccess: Bool?, documentId: String?) in
+        UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "DocumentCapture", to: result)
+      }
     }
   }
 }

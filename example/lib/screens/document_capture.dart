@@ -7,7 +7,6 @@ import 'package:flutter_amanisdk/modules/document_capture.dart';
 import 'package:flutter_amanisdk_example/screens/confim.dart';
 import 'package:file_picker/file_picker.dart';
 
-
 class DocumentCaputureScreen extends StatefulWidget {
   const DocumentCaputureScreen({super.key});
 
@@ -25,10 +24,15 @@ class _DocumentCaputureScreenState extends State<DocumentCaputureScreen> {
     // if no file is picked
     if (result == null) return;
 
-    final fileConvertUint8List = await File(result.files.first.path!).readAsBytes();
+    final fileConvertUint8List =
+        await File(result.files.first.path!).readAsBytes();
     // final mineType = lookupMimeType(result.files.first.path!);
-    FileTypeModel documentFile = FileTypeModel(data: fileConvertUint8List,dataType:"application/pdf");
-    _documentCaptureModule.startUploadWithFiles([documentFile]).then((image) {
+    FileTypeModel documentFile =
+        FileTypeModel(data: fileConvertUint8List, dataType: "application/pdf");
+    _documentCaptureModule.startUploadWithFiles([documentFile],
+        onResult: (isSuccess, documentId) {
+      debugPrint("DocumentCapture upload: $isSuccess, documentId: $documentId");
+    }).then((isUploaded) {
       Navigator.pushNamed(context, "/");
     }).catchError((err) {});
   }
@@ -86,7 +90,6 @@ class _DocumentCaputureScreenState extends State<DocumentCaputureScreen> {
               OutlinedButton(
                   onPressed: () {
                     _pickFile();
-
                   },
                   child: const Text("Upload Document"))
             ],

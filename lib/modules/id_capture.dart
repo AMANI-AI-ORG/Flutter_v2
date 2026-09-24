@@ -3,14 +3,12 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
-import 'package:flutter_amanisdk/common/models/id_upload_result.dart';
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'package:flutter_amanisdk/common/models/nvi_data.dart';
 import 'package:flutter_amanisdk/flutter_amanisdk_method_channel.dart';
 import 'package:flutter/material.dart';
 
 enum IdSide { front, back }
-
-
 
 class IdCapture {
   final MethodChannelAmaniSDK _methodChannel;
@@ -67,32 +65,25 @@ class IdCapture {
     }
   }
 
-  Future<bool> upload() async {
-    try {
-      final bool isDone = await _methodChannel.uploadIDCapture();
-      return isDone;
-    } catch (err) {
-      rethrow;
-    }
-  }
-
-  /// Uploads the captured ID and also returns the created `documentId`.
+  /// Uploads the captured ID and returns `true` when the upload succeeds.
   ///
-  /// Currently the `documentId` is only provided on iOS. On other platforms
-  /// this falls back to [upload] and `documentId` is always `null`.
-  Future<IdUploadResult> uploadWithDocumentId() async {
-    try {
-      if (!Platform.isIOS) {
-        final bool isDone = await _methodChannel.uploadIDCapture();
-        return IdUploadResult(isSuccess: isDone, documentId: null);
-      }
-      final response = await _methodChannel.uploadIDCaptureWithDocumentId();
-      return IdUploadResult.fromMap(response);
-    } catch (err) {
-      rethrow;
+  /// Pass [onResult] to also receive the `documentId` of the document the
+  /// upload created:
+  ///
+  /// ```dart
+  /// final isSuccess = await idCapture.upload(
+  ///   onResult: (isSuccess, documentId) {
+  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///   },
+  /// );
+  /// ```
+  Future<bool> upload({UploadResultCallback? onResult}) async {
+    if (onResult == null) {
+      return await _methodChannel.uploadIDCapture();
     }
+    final response = await _methodChannel.uploadIDCaptureWithDocumentId();
+    return _methodChannel.deliverUploadResult(response, onResult);
   }
-
 
 Future<String?> getMrzRequest() async {
   if (!Platform.isIOS) return null;
@@ -144,7 +135,6 @@ Future<String?> getMrzRequest() async {
 
  
 }
-
 
  
       

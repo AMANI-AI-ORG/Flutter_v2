@@ -158,6 +158,22 @@ class SpeechVerifierModule(
         )
     }
 
+    /** Uploads the speech verification and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun uploadWithDocumentId(result: MethodChannel.Result) {
+        SpeechVerifier.upload(
+            context = activity,
+            observer = object : SpeechVerifierUploadObserver {
+                override fun onResult(uploadResult: SpeechVerifierUploadResult) {
+                    result.success(mapOf("isSuccess" to true, "documentId" to uploadResult.documentId))
+                }
+
+                override fun onError(error: SpeechVerifierUploadError, message: String) {
+                    result.success(mapOf("isSuccess" to false, "documentId" to null))
+                }
+            },
+        )
+    }
+
     private fun buildVerificationSteps(array: org.json.JSONArray?): List<VerificationStep> {
         if (array == null) return emptyList()
         val steps = mutableListOf<VerificationStep>()
