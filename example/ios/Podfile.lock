@@ -39,6 +39,9 @@ PODS:
   - flutter_amanisdk (2.0.16):
     - AmaniSDK (= 3.7.6)
     - Flutter
+  - mobile_scanner (7.0.0):
+    - Flutter
+    - FlutterMacOS
   - OpenSSL-Universal (1.1.2301)
   - SDWebImage (5.21.7):
     - SDWebImage/Core (= 5.21.7)
@@ -49,6 +52,7 @@ DEPENDENCIES:
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
   - flutter_amanisdk (from `.symlinks/plugins/flutter_amanisdk/ios`)
+  - mobile_scanner (from `.symlinks/plugins/mobile_scanner/darwin`)
 
 SPEC REPOS:
   https://github.com/AmaniTechnologiesLtd/Mobile_SDK_Repo:
@@ -67,6 +71,8 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_amanisdk:
     :path: ".symlinks/plugins/flutter_amanisdk/ios"
+  mobile_scanner:
+    :path: ".symlinks/plugins/mobile_scanner/darwin"
 
 SPEC CHECKSUMS:
   AmaniSDK: 19864d50679bfe5b998e53aa2503152140e3f440
@@ -75,6 +81,7 @@ SPEC CHECKSUMS:
   file_picker: b159e0c068aef54932bb15dc9fd1571818edaf49
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_amanisdk: c8ab5ff33a3ee52427bbb028b9c7ceb8461e02fd
+  mobile_scanner: 77265f3dc8d580810e91849d4a0811a90467ed5e
   OpenSSL-Universal: ca89c20240633a77c776082ba76b7d90f992bf77
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
