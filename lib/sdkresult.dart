@@ -16,8 +16,12 @@ class SdkResult {
   /// or failed the verification
   Map<String, dynamic>? rules;
 
+  /// `true` when [AmaniSDK.startAmaniSDKWithConfigure] started the SDK session.
+  bool isSessionStarted;
+
   SdkResult(this.isVerificationCompleted, this.isTokenExpired,
-      this.apiExceptionCode, this.networkError, this.rules);
+      this.apiExceptionCode, this.networkError, this.rules,
+      {this.isSessionStarted = false});
 
   factory SdkResult.fromJson(dynamic json) {
     return SdkResult(
@@ -25,6 +29,7 @@ class SdkResult {
         json['isTokenExpired'] ?? false,
         json['apiExceptionCode'] as int?,
         json['networkError'] ?? false,
-        json['rules']);
+        json['rules'],
+        isSessionStarted: json['isSessionStarted'] ?? false);
   }
 }

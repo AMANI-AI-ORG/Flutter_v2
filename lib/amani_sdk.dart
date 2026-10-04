@@ -24,13 +24,11 @@ import 'amanisdk_platform_interface.dart';
 import 'sdkresult.dart';
 
 class AmaniSDK {
-  Completer<SdkResult>? _completer;
-
+  /// No longer needed: [startAmaniSDKWithConfigure] now returns the native
+  /// session result directly. Kept so existing calls keep compiling.
+  @Deprecated('No longer needed. This method does nothing.')
   // ignore: non_constant_identifier_names
-  Amanisdk() {
-    AmaniSDKPlatform.instance.methodChannel
-        .setMethodCallHandler(_handleInverseChannel);
-  }
+  void Amanisdk() {}
 
   final MethodChannelAmaniSDK _methodChannel = MethodChannelAmaniSDK();
   // final delegateChannel = const MethodChannel("amanisdk_delegate_channel");
@@ -151,6 +149,23 @@ class AmaniSDK {
     );
   }
 
+  /// Starts an SDK session with a profile [token] on Android.
+  ///
+  /// Completes once the native session start finishes.
+  /// [SdkResult.isSessionStarted] is `true` when the session started, and
+  /// [SdkResult.isTokenExpired] is `true` when the token had already expired.
+  /// Throws a [PlatformException] when the native side rejects the arguments
+  /// or the session start throws.
+  ///
+  /// ```dart
+  /// final result = await AmaniSDK().startAmaniSDKWithConfigure(
+  ///   token: token,
+  ///   id: idNumber,
+  /// );
+  /// if (result.isSessionStarted) {
+  ///   // The SDK modules can be used now.
+  /// }
+  /// ```
   Future<SdkResult> startAmaniSDKWithConfigure({
     required String token,
     required String id,
@@ -187,7 +202,13 @@ class AmaniSDK {
     }
 
     
-    AmaniSDKPlatform.instance.startAmaniSDKWithConfigure(
+    final dynamic exp = payloadJson['exp'];
+    final bool isTokenExpired = exp is num &&
+        DateTime.fromMillisecondsSinceEpoch((exp * 1000).toInt())
+            .isBefore(DateTime.now());
+
+    final bool? isSessionStarted =
+        await AmaniSDKPlatform.instance.startAmaniSDKWithConfigure(
       token,
       id,
       birthDate,
@@ -200,19 +221,14 @@ class AmaniSDK {
       name,
     );
 
-    _completer = Completer<SdkResult>();
-    return _completer!.future;
-  }
-
-  Future<void> _handleInverseChannel(MethodCall call) async {
-    switch (call.method) {
-      case 'onSuccess':
-        final result = SdkResult.fromJson(jsonDecode(call.arguments));
-        _completer?.complete(result);
-        break;
-      case 'onError':
-        _completer?.completeError(call.arguments);
-    }
+    return SdkResult(
+      false,
+      isTokenExpired,
+      null,
+      false,
+      null,
+      isSessionStarted: isSessionStarted == true,
+    );
   }
   
 
