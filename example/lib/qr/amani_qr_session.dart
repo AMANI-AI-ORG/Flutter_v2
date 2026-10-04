@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_amanisdk/amaniAndroidConfigure.dart';
 import 'package:flutter_amanisdk/amani_sdk.dart';
-import 'package:flutter_amanisdk/amanisdk_platform_interface.dart';
 import 'package:flutter_amanisdk/common/models/api_version.dart';
 
 /// Values read from an Amani verification QR code.
@@ -147,20 +146,16 @@ class AmaniQrSession {
           AmaniAndroidDynamicFeature.selfiePoseEstimation,
         ],
       );
-      // AmaniSDK().startAmaniSDKWithConfigure() returns a future that is never
-      // completed, so call the platform method directly to get the real result.
-      isSuccess = await AmaniSDKPlatform.instance.startAmaniSDKWithConfigure(
-              data.accessToken,
-              id,
-              null,
-              null,
-              null,
-              true,
-              lang,
-              null,
-              null,
-              null) ??
-          false;
+      final result = await sdk.startAmaniSDKWithConfigure(
+        token: data.accessToken,
+        id: id,
+        geoLocation: true,
+        lang: lang,
+      );
+      if (result.isTokenExpired) {
+        debugPrint('[QR] access token has already expired');
+      }
+      isSuccess = result.isSessionStarted;
     } else {
       isSuccess = await sdk.initAmani(
         server: data.serverUrl,
