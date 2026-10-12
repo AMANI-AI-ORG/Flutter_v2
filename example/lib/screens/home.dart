@@ -1,10 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_amanisdk/amani_sdk.dart';
-import 'package:flutter_amanisdk/common/models/api_version.dart';
-import 'package:flutter_amanisdk/amaniAndroidConfigure.dart';
-// import 'package:path_provider/path_provider.dart';
-import 'dart:convert';
-import 'dart:io';
+import 'package:flutter_amanisdk_example/qr/amani_qr_session.dart';
+import 'package:flutter_amanisdk_example/screens/qr_scanner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -14,64 +13,57 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Listen to SDK delegate events once per app run, not on every rebuild of home.
+  static StreamSubscription<dynamic>? _delegateSubscription;
 
-  final _amanisdkPlugin = AmaniSDK();
-
-  // Shared test credentials for both platforms.
-  static const _server = "";
-  static const _customerToken = "";
-  static const _customerIdCardNumber = "";
-
-  Future<void> initAmani() async {
-        if(Platform.isAndroid) {
-                  await _amanisdkPlugin.setConfigure(
-                  server: _server,
-                  enabledFeatures: const [
-                    AmaniAndroidDynamicFeature.idCapture,
-                    AmaniAndroidDynamicFeature.idHologramDetection,
-                    AmaniAndroidDynamicFeature.nfcScan,
-                    AmaniAndroidDynamicFeature.selfieAuto,
-                    AmaniAndroidDynamicFeature.selfiePoseEstimation,
-                  ],
-                );
-
-                final result = await _amanisdkPlugin.startAmaniSDKWithConfigure(
-                  token: _customerToken,
-                  id: _customerIdCardNumber,
-                  lang: "tr",
-                );
-
-                print(result.isTokenExpired);
-        } else {
-          AmaniSDK()
-              .initAmani(
-                  server: _server,
-                  customerToken: _customerToken,
-                  customerIdCardNumber: _customerIdCardNumber,
-                  useLocation: true,
-                  apiVersion: AmaniApiVersion.v2,
-                  lang: "tr")
-              .then((_) {
-            AmaniSDK().getCustomerInfo().then((value) {
-              // get customer id
-              print(value.id);
-            });
-          }).catchError((err) {
-            throw Exception(err);
-          });
-        }
-  
-
-    await for (final delegateEvent in AmaniSDK().getDelegateStream()) {
-      print("delegate event recieved");
-      print(delegateEvent);
-    }
-  }
+  bool _isStarting = false;
+  String _status = AmaniQrSession.isStarted
+      ? "SDK hazır."
+      : "Doğrulamayı başlatmak için QR kodu okutun.";
 
   @override
   void initState() {
     super.initState();
-    initAmani();
+    _delegateSubscription ??= AmaniSDK().getDelegateStream().listen((event) {
+      debugPrint("delegate event recieved");
+      debugPrint("$event");
+    });
+  }
+
+  Future<void> _scanAndStart() async {
+    final info = await Navigator.push<QrSessionInfo>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (info == null || !mounted) return;
+
+    setState(() {
+      _isStarting = true;
+      _status = "Oturum başlatılıyor...";
+    });
+    try {
+      final accessData = await AmaniQrSession.fetchAccessData(info);
+      final isSuccess = await AmaniQrSession.start(accessData);
+      if (!mounted) return;
+      setState(() => _status = isSuccess
+          ? "SDK hazır."
+          : "SDK başlatılamadı. QR kodu tekrar okutun.");
+    } catch (e) {
+      debugPrint("[QR] session start failed: $e");
+      if (!mounted) return;
+      setState(() => _status = "Hata: $e");
+    } finally {
+      if (mounted) setState(() => _isStarting = false);
+    }
+  }
+
+  Widget _moduleButton(String title, String route) {
+    return OutlinedButton(
+      onPressed: AmaniQrSession.isStarted
+          ? () => Navigator.pushNamed(context, route)
+          : null,
+      child: Text(title),
+    );
   }
 
   @override
@@ -81,56 +73,38 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.blue,
             title: const Text('Amani Flutter SDK Demo')),
         body: Center(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, "/id-capture");
-                    },
-                    child: const Text('ID Capture')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/selfie');
-                    },
-                    child: const Text('Selfie')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/auto-selfie');
-                    },
-                    child: const Text('Auto Selfie')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/pose-estimation');
-                    },
-                    child: const Text('Pose Estimation')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/nfc');
-                    },
-                    child: const Text('NFC')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/speech-verifier');
-                    },
-                    child: const Text('Speech Verifier')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/signature');
-                    },
-                    child: const Text('Signature')),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/bio-login');
-                    },
-                    child: const Text("BioLogin")),
-                OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/document-capture');
-                    },
-                    child: const Text("Document Capture"))
-              ]),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_status, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _isStarting ? null : _scanAndStart,
+                    icon: _isStarting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.qr_code_scanner),
+                    label: Text(AmaniQrSession.isStarted
+                        ? "Yeni QR Kodu Tara"
+                        : "QR Kodu Tara"),
+                  ),
+                  const SizedBox(height: 24),
+                  _moduleButton('ID Capture', '/id-capture'),
+                  _moduleButton('Selfie', '/selfie'),
+                  _moduleButton('Auto Selfie', '/auto-selfie'),
+                  _moduleButton('Pose Estimation', '/pose-estimation'),
+                  _moduleButton('NFC', '/nfc'),
+                  _moduleButton('Speech Verifier', '/speech-verifier'),
+                  _moduleButton('Signature', '/signature'),
+                  _moduleButton('BioLogin', '/bio-login'),
+                  _moduleButton('Document Capture', '/document-capture'),
+                ]),
+          ),
         ));
   }
 }
