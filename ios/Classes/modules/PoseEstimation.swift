@@ -112,7 +112,8 @@ class PoseEstimation {
   }
 
   /// Uploads the pose estimation images and returns {"isSuccess": Bool, "documentId": String?}.
-  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+  public func upload(result: @escaping FlutterResult, returnDocumentId: Bool) {
+    guard returnDocumentId else { upload(result: result); return }
     poseEstimation.upload { (isSuccess: Bool?, documentId: String?) in
       UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "PoseEstimation", to: result)
     }

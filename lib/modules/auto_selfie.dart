@@ -44,7 +44,7 @@ class AutoSelfie {
     if (onResult == null) {
       return await _methodChannel.uploadAutoSelfie();
     }
-    final response = await _methodChannel.uploadAutoSelfieWithDocumentId();
+    final response = await _methodChannel.invokeUpload('uploadAutoSelfie');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

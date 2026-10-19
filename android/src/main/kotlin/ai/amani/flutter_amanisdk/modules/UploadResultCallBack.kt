@@ -8,7 +8,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Upload callback for the `upload...WithDocumentId` channel methods.
+ * Upload callback for upload calls made with `returnDocumentId = true`.
  * Flutter receives: {"isSuccess": Boolean, "documentId": String?}
  *
  * The SDK's `uploadCallBack { isSuccess, documentID -> }` adapter only forwards

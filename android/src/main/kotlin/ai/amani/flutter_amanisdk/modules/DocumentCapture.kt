@@ -145,7 +145,8 @@ class DocumentCapture: Module {
     }
 
     /** Uploads the captured document or the set files, and returns {"isSuccess": Boolean, "documentId": String?}. */
-    fun uploadWithDocumentId(activity: Activity, result: MethodChannel.Result) {
+    fun upload(activity: Activity, result: MethodChannel.Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(activity, result); return }
         val type = docType
         if (type == null) {
             result.error("30013", "You must call setType before calling start method", null)

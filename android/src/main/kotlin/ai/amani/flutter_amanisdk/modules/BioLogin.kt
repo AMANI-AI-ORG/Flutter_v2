@@ -7,12 +7,16 @@ import ai.amani.flutter_amanisdk.modules.config_models.PoseEstimationSettings
 import ai.amani.sdk.Amani
 import ai.amani.sdk.interfaces.AutoSelfieCaptureObserver
 import ai.amani.sdk.interfaces.BioLoginUploadCallBack
+import ai.amani.sdk.interfaces.bioLoginUploadCallBack
 import ai.amani.sdk.interfaces.ManualSelfieCaptureObserver
 import ai.amani.sdk.modules.selfie.pose_estimation.observable.OnFailurePoseEstimation
 import ai.amani.sdk.modules.selfie.pose_estimation.observable.PoseEstimationObserver
 import android.app.Activity
 import android.content.Context //  FIX: Context import
 import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -21,6 +25,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 class BioLogin {
     private var docType: String = "XXX_SE_0"
@@ -42,15 +47,20 @@ class BioLogin {
         server: String,
         sharedSecret: String?,
         token: String,
-        customerId: Int,
         comparisonAdapter: Int?,
         source: Int?,
-        attemptID: String,
+        attemptID: String?,
         activity: Activity,
         result: MethodChannel.Result
     ) {
        
-        Amani.initBio(activity, server, sharedSecret)
+        // BioLogin V2 runs on the session started with Amani.configure() +
+        // startSession() (setConfigure + startAmaniSDKWithConfigure in Flutter).
+        // Amani.initBio() is not part of the V2 flow: it re-initializes the
+        // network client and can override the configured session, so it is not
+        // called here. server, token and sharedSecret are kept for API
+        // compatibility; the session's own values are used.
+        Log.d("AmaniBridge", "[BioLogin] init: using the SDK session started with configure + startSession")
 
         this.appContext = activity.applicationContext
 
@@ -80,6 +90,7 @@ class BioLogin {
         fa.addContentView(container, viewParams)
 
         frag = Amani.sharedInstance().BioLogin().AutoSelfieCapture()
+            .documentType(docType)
             .timeOutManualButton(settings.manualCaptureTimeout)
             .userInterfaceColors(
                 ovalViewStartColor = R.color.auto_selfie_oval_view,
@@ -143,6 +154,7 @@ class BioLogin {
         fa.addContentView(container, viewParams)
 
         frag = Amani.sharedInstance().BioLogin().PoseEstimation()
+            .documentType(docType)
             .requestedPoseNumber(settings.poseCount)
             .ovalViewAnimationDurationMilSec(settings.animationDuration)
             //   FIX: configuration() removed
@@ -244,6 +256,7 @@ class BioLogin {
         fa.addContentView(container, viewParams)
 
         frag = Amani.sharedInstance().BioLogin().ManualSelfieCapture()
+            .documentType(docType)
             .userInterfaceColors(
                 appFontColor = R.color.biologin_manual_selfie_font,
                 manualButtonColor = R.color.biologin_manual_selfie_button,
@@ -297,6 +310,36 @@ class BioLogin {
                 else completion.success(false)
             }
         })
+    }
+
+    /** Uploads the BioLogin selfie and returns {"isSuccess": Boolean, "documentId": String?}. */
+    fun upload(completion: MethodChannel.Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(completion); return }
+        val ctx = appContext
+        if (ctx == null) {
+            completion.error("30003", "Context is null. Start a BioLogin capture before upload.", null)
+            return
+        }
+
+        val replied = AtomicBoolean(false)
+        fun reply(isSuccess: Boolean?, documentId: String?) {
+            if (!replied.compareAndSet(false, true)) return
+            Log.d("AmaniBridge", "[BioLogin] upload result isSuccess=$isSuccess documentId=$documentId")
+            val payload = mapOf("isSuccess" to (isSuccess == true), "documentId" to documentId)
+            Handler(Looper.getMainLooper()).post { completion.success(payload) }
+        }
+
+        try {
+            // Documented V2 helper: forwards both cb overloads, so documentID is
+            // null when the upload fails or the backend returns no id.
+            // For BioLogin, isSuccess means the selfie was approved, not only uploaded.
+            Amani.sharedInstance().BioLogin().upload(ctx, bioLoginUploadCallBack { result, documentID ->
+                reply(result, documentID)
+            })
+        } catch (e: Exception) {
+            Log.e("AmaniBridge", "[BioLogin] upload failed", e)
+            reply(false, null)
+        }
     }
 
     fun backPressHandle(activity: Activity, result: MethodChannel.Result) {

@@ -4,6 +4,7 @@ import 'package:flutter_amanisdk/common/models/android/auto_selfie_settings.dart
 import 'package:flutter_amanisdk/common/models/android/pose_estimation_settings.dart';
 import 'package:flutter_amanisdk/common/models/ios/auto_selfie_settings.dart';
 import 'package:flutter_amanisdk/common/models/ios/pose_estimation_settings.dart';
+import 'package:flutter_amanisdk_example/qr/amani_qr_session.dart';
 
 class BioLogin extends StatefulWidget {
   const BioLogin({Key? key}) : super(key: key);
@@ -16,12 +17,61 @@ class _BioLoginState extends State<BioLogin> {
   final _bioLogin = AmaniSDK().getBioLogin();
   String _customerID = "";
 
+  String _status = "";
+  bool _hasCapture = false;
+
+  // Uses the server URL and token of the session started from the QR code.
   Future<void> initBioLogin() async {
-    await _bioLogin.init(
-        server: "server",
-        token: "bio login token from the biologin server",
-        customerId: _customerID,
-        attemptId: "string of attempt id which you should generate");
+    final accessData = AmaniQrSession.lastAccessData;
+    if (accessData == null) {
+      setState(() => _status = "Önce ana ekrandan QR kodu okutun.");
+      return;
+    }
+    try {
+      await _bioLogin.init(
+          server: accessData.serverUrl,
+          token: accessData.accessToken,
+          customerId: _customerID,
+          attemptId: "1");
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = "BioLogin başlatılamadı: $e");
+    }
+  }
+
+  // Keeps the capture result so the upload button can be enabled.
+  Future<void> _onCaptured(Future<dynamic> capture) async {
+    try {
+      await capture;
+      if (!mounted) return;
+      setState(() {
+        _hasCapture = true;
+        _status = "Selfie alındı, yüklemeye hazır.";
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = "Hata: $e");
+    }
+  }
+
+  Future<void> _upload() async {
+    setState(() => _status = "Yükleniyor...");
+    try {
+      String? uploadedDocumentId;
+      final isUploaded = await _bioLogin.upload(
+        onResult: (isSuccess, documentId) {
+          debugPrint("BioLogin upload: $isSuccess, documentId: $documentId");
+          uploadedDocumentId = documentId;
+        },
+      );
+      if (!mounted) return;
+      setState(() => _status = isUploaded
+          ? "Yükleme başarılı. documentId: $uploadedDocumentId"
+          : "Yükleme başarısız.");
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = "Hata: $e");
+    }
   }
 
   @override
@@ -133,19 +183,15 @@ class _BioLoginState extends State<BioLogin> {
             ),
             OutlinedButton(
                 onPressed: () {
-                  _bioLogin.startWithAutoSelfie(
+                  _onCaptured(_bioLogin.startWithAutoSelfie(
                       iosAutoSelfieSettings: _iOSAutoSelfieSettings,
-                      androidAutoSelfieSettings: _androidAutoSelfieSettings);
+                      androidAutoSelfieSettings: _androidAutoSelfieSettings));
                 },
                 child: const Text("Start AutoSelfie BioLogin")),
             OutlinedButton(
                 onPressed: () {
-                  _bioLogin
-                      .iOSStartWithPoseEstimation(
-                          settings: _iosPoseEstimationSettings)
-                      .then((imageData) {
-                    // do something with imageData
-                  });
+                  _onCaptured(_bioLogin.iOSStartWithPoseEstimation(
+                      settings: _iosPoseEstimationSettings));
                 },
                 child: const Text("Start PoseEstimation BioLogin")),
             OutlinedButton(
@@ -153,7 +199,10 @@ class _BioLoginState extends State<BioLogin> {
                   _bioLogin.androidStartWithPoseEstimation(
                       settings: _androidPoseEstimationSettings,
                       onSuccessCallback: (imageData) {
-                        // render the image with Image.memory(imageData)
+                        setState(() {
+                          _hasCapture = true;
+                          _status = "Selfie alındı, yüklemeye hazır.";
+                        });
                       },
                       onFailureCallback: (failureParams) {
                         print(failureParams["reason"] +
@@ -163,10 +212,16 @@ class _BioLoginState extends State<BioLogin> {
                 child: const Text("Start PoseEstimation BioLogin (Android)")),
             OutlinedButton(
                 onPressed: () {
-                  _bioLogin.startWithManualSelfie(
-                      androidSelfieDescriptionText: "Hi");
+                  _onCaptured(_bioLogin.startWithManualSelfie(
+                      androidSelfieDescriptionText: "Hi"));
                 },
                 child: const Text("Start Manual Selfie BioLogin")),
+            const SizedBox(height: 16),
+            ElevatedButton(
+                onPressed: _hasCapture ? _upload : null,
+                child: const Text("Upload")),
+            const SizedBox(height: 12),
+            Text(_status, textAlign: TextAlign.center),
           ],
         ),
       ),

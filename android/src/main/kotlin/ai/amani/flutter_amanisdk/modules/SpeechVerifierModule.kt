@@ -159,7 +159,8 @@ class SpeechVerifierModule(
     }
 
     /** Uploads the speech verification and returns {"isSuccess": Boolean, "documentId": String?}. */
-    fun uploadWithDocumentId(result: MethodChannel.Result) {
+    fun upload(result: MethodChannel.Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(result); return }
         SpeechVerifier.upload(
             context = activity,
             observer = object : SpeechVerifierUploadObserver {

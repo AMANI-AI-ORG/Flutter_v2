@@ -121,7 +121,8 @@ class SpeechVerifier {
   }
 
   /// Uploads the speech verification and returns {"isSuccess": Bool, "documentId": String?}.
-  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+  public func upload(result: @escaping FlutterResult, returnDocumentId: Bool) {
+    guard returnDocumentId else { upload(result: result); return }
     guard let module = module else {
       UploadResultPayload.send(isSuccess: false, documentId: nil, module: "SpeechVerifier", to: result)
       return

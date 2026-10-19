@@ -63,8 +63,9 @@ class IdCapture {
   
   /// Uploads the captured ID and returns both the result and the created documentId.
   /// Flutter receives: {"isSuccess": Bool, "documentId": String?}
-  public func uploadWithDocumentId(result: @escaping FlutterResult) {
-    print("[AmaniBridge][IDCapture] uploadWithDocumentId called")
+  public func upload(result: @escaping FlutterResult, returnDocumentId: Bool) {
+    guard returnDocumentId else { upload(result: result); return }
+    print("[AmaniBridge][IDCapture] upload with documentId called")
     module.upload { (isSuccess: Bool?, documentId: String?) in
       UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "IDCapture", to: result)
     }

@@ -6,7 +6,7 @@
 import Flutter
 import Foundation
 
-/// Builds the payload every `upload...WithDocumentId` method returns to Flutter.
+/// Builds the payload an upload call made with `returnDocumentId: true` returns to Flutter.
 /// Flutter receives: {"isSuccess": Bool, "documentId": String?}
 enum UploadResultPayload {
   static func send(
@@ -15,7 +15,7 @@ enum UploadResultPayload {
     module: String,
     to result: @escaping FlutterResult
   ) {
-    print("[AmaniBridge][\(module)] uploadWithDocumentId result isSuccess=\(String(describing: isSuccess)) documentId=\(String(describing: documentId))")
+    print("[AmaniBridge][\(module)] upload result isSuccess=\(String(describing: isSuccess)) documentId=\(String(describing: documentId))")
     let payload: [String: Any] = [
       "isSuccess": isSuccess ?? false,
       "documentId": documentId ?? NSNull(),

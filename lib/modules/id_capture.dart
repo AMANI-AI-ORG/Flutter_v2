@@ -81,7 +81,7 @@ class IdCapture {
     if (onResult == null) {
       return await _methodChannel.uploadIDCapture();
     }
-    final response = await _methodChannel.uploadIDCaptureWithDocumentId();
+    final response = await _methodChannel.invokeUpload('uploadIDCapture');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

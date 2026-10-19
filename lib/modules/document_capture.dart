@@ -51,7 +51,7 @@ class DocumentCapture {
       return uploadState == true;
     }
     final response =
-        await _methodChannel.documentCaptureUploadWithDocumentId(fileList);
+        await _methodChannel.invokeUpload('documentCaptureUpload', {'files': fileList});
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

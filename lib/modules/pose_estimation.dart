@@ -43,7 +43,7 @@ class PoseEstimation {
     if (onResult == null) {
       return await _methodChannel.uploadPoseEstimation();
     }
-    final response = await _methodChannel.uploadPoseEstimationWithDocumentId();
+    final response = await _methodChannel.invokeUpload('uploadPoseEstimation');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart';
 import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -17,7 +18,6 @@ import 'common/models/nvi_data.dart';
 class MethodChannelAmaniSDK extends AmaniSDKPlatform {
   /// The method channel used to interact with the native platform.
   final methodChannel = const MethodChannel('amanisdk_method_channel');
-
 
     @override
   Future<void> setConfigure({
@@ -85,10 +85,6 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
       rethrow;
     }
   }
-
-  @override
-  Future<Map<String, dynamic>> uploadIDCaptureWithDocumentId() =>
-      _invokeUploadWithDocumentId('uploadIDCaptureWithDocumentId');
 
 @override
     Future<String?> getMrzRequest() async {
@@ -299,7 +295,7 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     if (Platform.isAndroid) {
       try {
         final bool result = await methodChannel
-            .invokeMethod("autoSelfieAndroidBackPressHandle");
+            .invokeMethod("bioLoginAndroidBackPressHandle");
         return result;
       } catch (e) {
         rethrow;
@@ -379,7 +375,6 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     await methodChannel
         .invokeMethod("setPoseEstimationVideoRecording", {"enabled": enabled});
   }
-
 
  // Speech Verifier
   @override
@@ -609,7 +604,7 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     if (Platform.isAndroid) {
       try {
         final bool result = await methodChannel
-            .invokeMethod("autoSelfieAndroidBackPressHandle");
+            .invokeMethod("bioLoginAndroidBackPressHandle");
         return result;
       } catch (e) {
         rethrow;
@@ -712,9 +707,10 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     }
   }
 
-  // MARK: Upload with documentId
+  // MARK: Upload with documentId (internal)
 
   /// Passes a native upload payload to [onResult] and returns its `isSuccess`.
+  @internal
   bool deliverUploadResult(
       Map<String, dynamic> response, UploadResultCallback onResult) {
     final bool isSuccess = response['isSuccess'] == true;
@@ -726,46 +722,17 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     return isSuccess;
   }
 
-  /// Invokes a native `upload...WithDocumentId` method.
-  /// Native side returns {"isSuccess": Bool, "documentId": String?}.
-  Future<Map<String, dynamic>> _invokeUploadWithDocumentId(String method,
+  /// Calls a native upload method with `returnDocumentId: true`.
+  /// The native side then returns {"isSuccess": Bool, "documentId": String?}
+  /// instead of a Bool. Used by the SDK modules' `upload(onResult:)`.
+  @internal
+  Future<Map<String, dynamic>> invokeUpload(String method,
       [Map<String, dynamic>? arguments]) async {
-    final Map<dynamic, dynamic>? response = await methodChannel
-        .invokeMethod<Map<dynamic, dynamic>>(method, arguments);
+    final Map<dynamic, dynamic>? response =
+        await methodChannel.invokeMethod<Map<dynamic, dynamic>>(
+            method, {...?arguments, 'returnDocumentId': true});
     return Map<String, dynamic>.from(response ?? const {});
   }
-
-  @override
-  Future<Map<String, dynamic>> uploadSelfieWithDocumentId() =>
-      _invokeUploadWithDocumentId('uploadSelfieWithDocumentId');
-
-  @override
-  Future<Map<String, dynamic>> uploadAutoSelfieWithDocumentId() =>
-      _invokeUploadWithDocumentId('uploadAutoSelfieWithDocumentId');
-
-  @override
-  Future<Map<String, dynamic>> uploadPoseEstimationWithDocumentId() =>
-      _invokeUploadWithDocumentId('uploadPoseEstimationWithDocumentId');
-
-  @override
-  Future<Map<String, dynamic>> uploadSpeechVerifierWithDocumentId() =>
-      _invokeUploadWithDocumentId('uploadSpeechVerifierWithDocumentId');
-
-  @override
-  Future<Map<String, dynamic>> iosUploadNFCCaptureWithDocumentId() =>
-      _invokeUploadWithDocumentId('iOSuploadNFCWithDocumentId');
-
-  @override
-  Future<Map<String, dynamic>> documentCaptureUploadWithDocumentId(List<Map<String, dynamic>>? files) =>
-      _invokeUploadWithDocumentId('documentCaptureUploadWithDocumentId', {'files': files});
-
-  @override
-  Future<Map<String, dynamic>> uploadSignatureWithDocumentId() =>
-      _invokeUploadWithDocumentId('uploadSignatureWithDocumentId');
-
-  @override
-  Future<Map<String, dynamic>> androidUploadNFCWithDocumentId() =>
-      _invokeUploadWithDocumentId('androidUploadNFCWithDocumentId');
 
   // MARK: Signature
 

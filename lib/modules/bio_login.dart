@@ -4,6 +4,7 @@ import 'package:flutter_amanisdk/common/models/android/auto_selfie_settings.dart
 import 'package:flutter_amanisdk/common/models/android/pose_estimation_settings.dart';
 import 'package:flutter_amanisdk/common/models/ios/auto_selfie_settings.dart';
 import 'package:flutter_amanisdk/common/models/ios/pose_estimation_settings.dart';
+import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'package:flutter_amanisdk/flutter_amanisdk_method_channel.dart';
 
 class BioLogin {
@@ -14,6 +15,12 @@ class BioLogin {
   Function(Uint8List)? _androidPoseEstimationOnSuccess;
   Function(Map<String, dynamic>)? _androidPoseEstimationOnFailure;
 
+  /// Sets up BioLogin.
+  ///
+  /// iOS uses [server] and [token] to build the BioLogin module.
+  /// Android (BioLogin V2) runs on the SDK session instead: start it first with
+  /// [AmaniSDK.setConfigure] and [AmaniSDK.startAmaniSDKWithConfigure] using a
+  /// profile token. [customerId] and [attemptId] are no longer used.
   Future<void> init({
     required String customerId,
     required String server,
@@ -106,13 +113,26 @@ class BioLogin {
     }
   }
 
-  Future<bool> upload() async {
-    try {
-      final bool isDone = await _methodChannel.uploadBioLogin();
-      return isDone;
-    } catch (err) {
-      rethrow;
+  /// Uploads the BioLogin selfie and returns `true` when the selfie was
+  /// approved. Unlike other modules, `false` means the upload failed or the
+  /// selfie was not approved.
+  ///
+  /// Pass [onResult] to also receive the `documentId` of the document the
+  /// upload created:
+  ///
+  /// ```dart
+  /// final isSuccess = await bioLogin.upload(
+  ///   onResult: (isSuccess, documentId) {
+  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///   },
+  /// );
+  /// ```
+  Future<bool> upload({UploadResultCallback? onResult}) async {
+    if (onResult == null) {
+      return await _methodChannel.uploadBioLogin();
     }
+    final response = await _methodChannel.invokeUpload('uploadBioLogin');
+    return _methodChannel.deliverUploadResult(response, onResult);
   }
 
   Future<bool> androidBackButtonHandle() async {

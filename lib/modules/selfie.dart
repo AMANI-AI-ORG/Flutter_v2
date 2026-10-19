@@ -37,7 +37,7 @@ class Selfie {
     if (onResult == null) {
       return await _methodChannel.uploadSelfie();
     }
-    final response = await _methodChannel.uploadSelfieWithDocumentId();
+    final response = await _methodChannel.invokeUpload('uploadSelfie');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 
