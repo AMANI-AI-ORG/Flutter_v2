@@ -1,5 +1,5 @@
 PODS:
-  - AmaniSDK (3.7.6):
+  - AmaniSDK (3.7.7):
     - OpenSSL-Universal (= 1.1.2301)
   - DKImagePickerController/Core (4.3.9):
     - DKImagePickerController/ImageDataManager
@@ -37,7 +37,7 @@ PODS:
     - Flutter
   - Flutter (1.0.0)
   - flutter_amanisdk (2.0.16):
-    - AmaniSDK (= 3.7.6)
+    - AmaniSDK (= 3.7.7)
     - Flutter
   - mobile_scanner (7.0.0):
     - Flutter
@@ -75,12 +75,12 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/mobile_scanner/darwin"
 
 SPEC CHECKSUMS:
-  AmaniSDK: 19864d50679bfe5b998e53aa2503152140e3f440
+  AmaniSDK: 1efb661ebb6db0a1d751dd87c9219ebee8b29ad5
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: b159e0c068aef54932bb15dc9fd1571818edaf49
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_amanisdk: c8ab5ff33a3ee52427bbb028b9c7ceb8461e02fd
+  flutter_amanisdk: 62eb939336c3b19a189e28c09f924a13cb22d562
   mobile_scanner: 77265f3dc8d580810e91849d4a0811a90467ed5e
   OpenSSL-Universal: ca89c20240633a77c776082ba76b7d90f992bf77
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf

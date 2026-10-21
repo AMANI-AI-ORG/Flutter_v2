@@ -59,7 +59,8 @@ class NFC {
   }
 
   /// Uploads the NFC data and returns {"isSuccess": Bool, "documentId": String?}.
-  func uploadWithDocumentId(result: @escaping FlutterResult) {
+  func upload(result: @escaping FlutterResult, returnDocumentId: Bool) {
+    guard returnDocumentId else { upload(result: result); return }
     module.upload { (isSuccess: Bool?, documentId: String?) in
       UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "NFC", to: result)
     }

@@ -92,7 +92,8 @@ class SignatureCapture {
     }
 
     /** Uploads the confirmed signatures and returns {"isSuccess": Boolean, "documentId": String?}. */
-    fun uploadWithDocumentId(result: MethodChannel.Result) {
+    fun upload(result: MethodChannel.Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(result); return }
         try {
             signatureModule.upload(result.uploadResultCallBack("Signature"))
         } catch (e: Exception) {

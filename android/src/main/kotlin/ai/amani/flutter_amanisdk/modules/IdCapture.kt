@@ -128,7 +128,8 @@ class IdCapture : Module {
     }
 
     /** Uploads the captured ID and returns {"isSuccess": Boolean, "documentId": String?}. */
-    fun uploadWithDocumentId(activity: Activity, result: Result) {
+    fun upload(activity: Activity, result: Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(activity, result); return }
         val type = docType
         if (type.isNullOrEmpty()) {
             result.error("30003", "Type not set.", "You have to call setType on idCapture before calling this method.")

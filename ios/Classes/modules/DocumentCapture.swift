@@ -53,7 +53,8 @@ class DocumentCapture {
 
   /// Uploads the captured document (or the given files) and returns
   /// {"isSuccess": Bool, "documentId": String?}.
-  func uploadWithDocumentId(files: [FileWithType]?, result: @escaping FlutterResult) {
+  func upload(files: [FileWithType]?, result: @escaping FlutterResult, returnDocumentId: Bool) {
+    guard returnDocumentId else { upload(files: files, result: result); return }
     if let files = files {
       module.upload(location: nil, files: files) { (isSuccess: Bool?, documentId: String?) in
         UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "DocumentCapture", to: result)

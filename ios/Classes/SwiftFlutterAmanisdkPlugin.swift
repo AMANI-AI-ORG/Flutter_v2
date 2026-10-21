@@ -23,6 +23,8 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     let arguments = call.arguments as? [String: Any]
+    // Upload calls return {"isSuccess", "documentId"} instead of a Bool when this is true.
+    let returnDocumentId = arguments?["returnDocumentId"] as? Bool ?? false
     switch call.method {
     case "initAmani":
       let server = arguments?["server"] as! String
@@ -87,10 +89,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       idCapture.setHologramDetection(enabled: enabled ?? false, result: result)
     case "uploadIDCapture":
       let idCapture = IdCapture()
-      idCapture.upload(result: result)
-    case "uploadIDCaptureWithDocumentId":
-      let idCapture = IdCapture()
-      idCapture.uploadWithDocumentId(result: result)
+      idCapture.upload(result: result, returnDocumentId: returnDocumentId)
       // get Mrz Data
     case "getMrz":
     let idCapture = IdCapture()
@@ -105,10 +104,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       selfie.start(result: result)
     case "uploadSelfie":
       let selfie = Selfie()
-      selfie.upload(result: result)
-    case "uploadSelfieWithDocumentId":
-      let selfie = Selfie()
-      selfie.uploadWithDocumentId(result: result)
+      selfie.upload(result: result, returnDocumentId: returnDocumentId)
     // AutoSelfie
     case "startAutoSelfie":
       let autoSelfie = AutoSelfie()
@@ -122,10 +118,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       autoSelfie.setType(type: type, result: result)
     case "uploadAutoSelfie":
       let autoSelfie = AutoSelfie()
-      autoSelfie.upload(result: result)
-    case "uploadAutoSelfieWithDocumentId":
-      let autoSelfie = AutoSelfie()
-      autoSelfie.uploadWithDocumentId(result: result)
+      autoSelfie.upload(result: result, returnDocumentId: returnDocumentId)
     // Pose Estimation
     case "startPoseEstimation":
       let poseEstimation = PoseEstimation()
@@ -143,10 +136,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       poseEstimation.setVideoRecording(enabled: enabled ?? true, result: result)
     case "uploadPoseEstimation":
         let poseEstimation = PoseEstimation()
-        poseEstimation.upload(result: result)
-    case "uploadPoseEstimationWithDocumentId":
-        let poseEstimation = PoseEstimation()
-        poseEstimation.uploadWithDocumentId(result: result)
+        poseEstimation.upload(result: result, returnDocumentId: returnDocumentId)
 
     // Speech Verifier
     case "startSpeechVerifier":
@@ -156,19 +146,18 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       let iosArgs = arguments?["iosSettings"] as! String
       speechVerifier.start(settingsJSON: iosArgs, result: result)
     case "uploadSpeechVerifier":
-        speechVerifierInstance?.upload { [weak self] isSuccess in
-          result(isSuccess)
-          self?.speechVerifierInstance = nil
-        }
-    case "uploadSpeechVerifierWithDocumentId":
         guard let speechVerifier = speechVerifierInstance else {
-          UploadResultPayload.send(isSuccess: false, documentId: nil, module: "SpeechVerifier", to: result)
+          if returnDocumentId {
+            UploadResultPayload.send(isSuccess: false, documentId: nil, module: "SpeechVerifier", to: result)
+          } else {
+            result(false)
+          }
           return
         }
-        speechVerifier.uploadWithDocumentId { [weak self] payload in
-          result(payload)
+        speechVerifier.upload(result: { [weak self] value in
+          result(value)
           self?.speechVerifierInstance = nil
-        }
+        }, returnDocumentId: returnDocumentId)
     // Signature
     case "startSignature":
       let signature = SignatureCapture()
@@ -176,10 +165,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       signature.start(arguments: arguments, result: result)
     case "uploadSignature":
       let signature = signatureInstance ?? SignatureCapture()
-      signature.upload(result: result)
-    case "uploadSignatureWithDocumentId":
-      let signature = signatureInstance ?? SignatureCapture()
-      signature.uploadWithDocumentId(result: result)
+      signature.upload(result: result, returnDocumentId: returnDocumentId)
     // NFC
     /*
     case "iOSstartNFCWithImageData":
@@ -227,42 +213,38 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         nfc.setType(type: type, result: result)
     case "iOSuploadNFC":
         let nfc = NFC()
-        nfc.upload(result: result)
-    case "iOSuploadNFCWithDocumentId":
-        let nfc = NFC()
-        nfc.uploadWithDocumentId(result: result)
+        nfc.upload(result: result, returnDocumentId: returnDocumentId)
+    // BioLogin
     case "initBioLogin":
-      print("initBioLogin")
-        // let bioLogin = BioLogin.shared
-        // bioLogin.initBioLogin(server: arguments!["server"] as! String,
-        //                       token: arguments!["token"] as! String,
-        //                       customerId: arguments!["customerId"] as! String,
-        //                       attemptId: arguments!["attemptId"] as! String,
-        //                       source: arguments!["source"] as? Int,
-        //                       comparisonAdapter: arguments!["comparisonAdapter"] as? Int,
-        //                       result: result)
+      guard let server = arguments?["server"] as? String,
+            let token = arguments?["token"] as? String else {
+        result(FlutterError(code: "30009", message: "server and token are required", details: nil))
+        return
+      }
+      BioLoginCapture.shared.initBioLogin(
+        server: server,
+        token: token,
+        source: arguments?["source"] as? Int,
+        comparisonAdapter: arguments?["comparisonAdapter"] as? Int,
+        result: result)
     case "startBioLoginWithAutoSelfie":
-      print("startBioLoginWithAutoSelfie")
-        // let bioLogin = BioLogin.shared
-        // let decoder = JSONDecoder()
-        // let iosArgs = arguments?["iosSettings"] as! String
-        // let autoSelfieSettings = try! decoder.decode(AutoSelfieSettings.self, from: Data(iosArgs.utf8))
-        // bioLogin.startWithAutoSelfie(settings: autoSelfieSettings, result: result)
-    case "startBioLoginWithPoseEstimation":
-      print("startBioLoginWithPoseEstimation")
-        // let bioLogin = BioLogin.shared
-        // let decoder = JSONDecoder()
-        // let iosArgs = arguments!["iosSettings"] as! String
-        // let poseEstimationSettings = try! decoder.decode(PoseEstimationSettings.self, from: Data(iosArgs.utf8))
-        // bioLogin.startWithPoseEstimation(settings: poseEstimationSettings, result: result)
+      guard let iosArgs = arguments?["iosSettings"] as? String,
+            let settings = try? JSONDecoder().decode(AutoSelfieSettings.self, from: Data(iosArgs.utf8)) else {
+        result(FlutterError(code: "30009", message: "Invalid iosSettings for BioLogin auto selfie", details: nil))
+        return
+      }
+      BioLoginCapture.shared.startWithAutoSelfie(settings: settings, result: result)
+    case "iOSStartBioLoginWithPoseEstimation":
+      guard let iosArgs = arguments?["iosSettings"] as? String,
+            let settings = try? JSONDecoder().decode(PoseEstimationSettings.self, from: Data(iosArgs.utf8)) else {
+        result(FlutterError(code: "30009", message: "Invalid iosSettings for BioLogin pose estimation", details: nil))
+        return
+      }
+      BioLoginCapture.shared.startWithPoseEstimation(settings: settings, result: result)
     case "startBioLoginWithManualSelfie":
-      print("startBioLoginWithManualSelfie")
-        // let bioLogin = BioLogin.shared
-        // bioLogin.startWithManualSelfie(result: result)
+      BioLoginCapture.shared.startWithManualSelfie(result: result)
     case "uploadBioLogin":
-      print("uploadBioLogin")
-        // let bioLogin = BioLogin.shared
-        // bioLogin.upload(result: result)
+      BioLoginCapture.shared.upload(result: result, returnDocumentId: returnDocumentId)
     case "getCustomerInfo":
         getCustomerInfo(result: result)
     // MARK: Document Capture
@@ -276,10 +258,7 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       documentCapture.setType(type: documentType, result: result)
     case "documentCaptureUpload":
       let documentCapture = DocumentCapture()
-      documentCapture.upload(files: documentFiles(from: arguments), result: result)
-    case "documentCaptureUploadWithDocumentId":
-      let documentCapture = DocumentCapture()
-      documentCapture.uploadWithDocumentId(files: documentFiles(from: arguments), result: result)
+      documentCapture.upload(files: documentFiles(from: arguments), result: result, returnDocumentId: returnDocumentId)
 
     default:
       result(FlutterMethodNotImplemented)

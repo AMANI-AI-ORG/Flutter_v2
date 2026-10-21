@@ -71,6 +71,9 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    // Upload calls return {"isSuccess", "documentId"} instead of a Boolean when this is true.
+    val returnDocumentId = (call.arguments as? Map<*, *>)?.get("returnDocumentId") == true
+
     when (call.method) {
 
       // -------------------------
@@ -221,15 +224,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("NO_ACTIVITY", "Activity is null", null)
           return
         }
-        IdCapture.instance.upload(act, result)
-      }
-
-      "uploadIDCaptureWithDocumentId" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
-          return
-        }
-        IdCapture.instance.uploadWithDocumentId(act, result)
+        IdCapture.instance.upload(act, result, returnDocumentId)
       }
 
       "idCaptureAndroidBackPressHandle" -> {
@@ -269,15 +264,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("NO_ACTIVITY", "Activity is null", null)
           return
         }
-        Selfie.instance.upload(act, result)
-      }
-
-      "uploadSelfieWithDocumentId" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
-          return
-        }
-        Selfie.instance.uploadWithDocumentId(act, result)
+        Selfie.instance.upload(act, result, returnDocumentId)
       }
 
       // -------------------------
@@ -316,15 +303,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("NO_ACTIVITY", "Activity is null", null)
           return
         }
-        AutoSelfie.instance.upload(act, result)
-      }
-
-      "uploadAutoSelfieWithDocumentId" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
-          return
-        }
-        AutoSelfie.instance.uploadWithDocumentId(act, result)
+        AutoSelfie.instance.upload(act, result, returnDocumentId)
       }
 
       // -------------------------
@@ -363,15 +342,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("NO_ACTIVITY", "Activity is null", null)
           return
         }
-        PoseEstimation.instance.upload(act, result)
-      }
-
-      "uploadPoseEstimationWithDocumentId" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
-          return
-        }
-        PoseEstimation.instance.uploadWithDocumentId(act, result)
+        PoseEstimation.instance.upload(act, result, returnDocumentId)
       }
 
       "setPoseEstimationVideoRecording" -> {
@@ -407,12 +378,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
     }
 
       "uploadSpeechVerifier" -> {
-        speechVerifierModule?.upload(result) ?: result.success(false)
-      }
-
-      "uploadSpeechVerifierWithDocumentId" -> {
-        speechVerifierModule?.uploadWithDocumentId(result)
-          ?: result.success(mapOf("isSuccess" to false, "documentId" to null))
+        speechVerifierModule?.upload(result, returnDocumentId)
+          ?: result.success(if (returnDocumentId) mapOf("isSuccess" to false, "documentId" to null) else false)
       }
 
       "speechVerifierAndroidBackPressHandle" -> {
@@ -463,11 +430,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "androidUploadNFC" -> {
-        NFC.instance.upload(result)
-      }
-
-      "androidUploadNFCWithDocumentId" -> {
-        NFC.instance.uploadWithDocumentId(result)
+        NFC.instance.upload(result, returnDocumentId)
       }
 
       // -------------------------
@@ -484,11 +447,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "uploadSignature" -> {
-        SignatureCapture.instance.upload(result)
-      }
-
-      "uploadSignatureWithDocumentId" -> {
-        SignatureCapture.instance.uploadWithDocumentId(result)
+        SignatureCapture.instance.upload(result, returnDocumentId)
       }
 
       "signatureAndroidBackPressHandle" -> {
@@ -510,14 +469,14 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
 
         val server = call.argument<String>("server")
         val token = call.argument<String>("token")
-        val customerId = call.argument<String>("customerId")
+        // customerId is not used by the Android BioLogin module, and attemptId is optional.
         val attemptId = call.argument<String>("attemptId")
         val source = call.argument<Int>("source")
         val comparisonAdapter = call.argument<Int>("comparisonAdapter")
         val sharedSecret = call.argument<String>("sharedSecret")
 
-        if (server.isNullOrBlank() || token.isNullOrBlank() || customerId.isNullOrBlank() || attemptId.isNullOrBlank()) {
-          result.error("INVALID_ARGUMENT", "server/token/customerId/attemptId must not be null or empty.", null)
+        if (server.isNullOrBlank() || token.isNullOrBlank()) {
+          result.error("INVALID_ARGUMENT", "server and token must not be null or empty.", null)
           return
         }
 
@@ -525,7 +484,6 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           server,
           sharedSecret,
           token,
-          customerId.toInt(),
           comparisonAdapter,
           source,
           attemptId,
@@ -584,7 +542,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "uploadBioLogin" -> {
-        BioLogin.instance.upload(result)
+        BioLogin.instance.upload(result, returnDocumentId)
       }
 
       // -------------------------
@@ -615,24 +573,13 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           return
         }
         val files = call.argument<List<Map<String, Any>>>("files")
-        if (files != null) {
-          DocumentCapture.instance.setFiles(files)
-        }
-        DocumentCapture.instance.upload(act, result)
-      }
-
-      "documentCaptureUploadWithDocumentId" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
-          return
-        }
-        val files = call.argument<List<Map<String, Any>>>("files")
-        if (files.isNullOrEmpty()) {
+        if (returnDocumentId && files.isNullOrEmpty()) {
+          // Upload the captured document instead of files from an earlier call.
           DocumentCapture.instance.clearFiles()
-        } else {
+        } else if (files != null) {
           DocumentCapture.instance.setFiles(files)
         }
-        DocumentCapture.instance.uploadWithDocumentId(act, result)
+        DocumentCapture.instance.upload(act, result, returnDocumentId)
       }
 
       "documentCaptureBackPressHandle" -> {

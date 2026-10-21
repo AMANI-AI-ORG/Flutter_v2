@@ -169,7 +169,8 @@ class PoseEstimation: Module {
     }
 
     /** Uploads the pose estimation selfie and returns {"isSuccess": Boolean, "documentId": String?}. */
-    fun uploadWithDocumentId(activity: Activity, result: MethodChannel.Result) {
+    fun upload(activity: Activity, result: MethodChannel.Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(activity, result); return }
         try {
             poseEstimationModule.upload(activity as FragmentActivity, docType, result.uploadResultCallBack("PoseEstimation"))
         } catch (e: Exception) {

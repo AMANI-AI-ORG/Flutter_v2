@@ -60,6 +60,10 @@ class AmaniQrSession {
   /// screen does not ask for a new QR code every time it is rebuilt.
   static bool isStarted = false;
 
+  /// Access data of the last session started from a QR code. The BioLogin
+  /// screen reuses its server URL and token.
+  static UserAccessData? lastAccessData;
+
   /// Reads the pid and server URL from the scanned QR payload.
   ///
   /// The pid comes from the `pid` query parameter. The server URL comes from a
@@ -130,7 +134,7 @@ class AmaniQrSession {
   /// token, but the bridge still requires a non-empty id, so the token's
   /// `profile_id` is passed as the id.
   static Future<bool> start(UserAccessData data, {String? language}) async {
-    final lang = language ?? data.language ?? 'tr';
+    final lang = 'ru';
     final id = _profileIdFromToken(data.accessToken) ?? 'qr-session';
     final sdk = AmaniSDK();
 
@@ -168,6 +172,7 @@ class AmaniQrSession {
     }
 
     isStarted = isSuccess;
+    if (isSuccess) lastAccessData = data;
     debugPrint(
         '[QR] SDK init finished: $isSuccess (server: ${data.serverUrl}, lang: $lang)');
     return isSuccess;

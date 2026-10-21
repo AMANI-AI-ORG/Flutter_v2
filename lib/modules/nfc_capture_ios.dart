@@ -54,7 +54,7 @@ class IOSNFCCapture {
     if (onResult == null) {
       return await _methodChannel.iosUploadNFCCapture();
     }
-    final response = await _methodChannel.iosUploadNFCCaptureWithDocumentId();
+    final response = await _methodChannel.invokeUpload('iOSuploadNFC');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

@@ -39,7 +39,7 @@ class Signature {
     if (onResult == null) {
       return await _methodChannel.uploadSignature();
     }
-    final response = await _methodChannel.uploadSignatureWithDocumentId();
+    final response = await _methodChannel.invokeUpload('uploadSignature');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

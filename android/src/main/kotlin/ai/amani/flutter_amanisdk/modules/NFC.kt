@@ -152,7 +152,8 @@ class NFC {
     }
 
     /** Uploads the NFC data and returns {"isSuccess": Boolean, "documentId": String?}. */
-    fun uploadWithDocumentId(result: MethodChannel.Result) {
+    fun upload(result: MethodChannel.Result, returnDocumentId: Boolean) {
+        if (!returnDocumentId) { upload(result); return }
         try {
             Amani.sharedInstance().ScanNFC()
                 .upload(activityRef as FragmentActivity, docType, result.uploadResultCallBack("NFC"))

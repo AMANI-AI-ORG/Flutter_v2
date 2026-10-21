@@ -43,7 +43,7 @@ class SpeechVerifier {
     if (onResult == null) {
       return await _methodChannel.uploadSpeechVerifier();
     }
-    final response = await _methodChannel.uploadSpeechVerifierWithDocumentId();
+    final response = await _methodChannel.invokeUpload('uploadSpeechVerifier');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

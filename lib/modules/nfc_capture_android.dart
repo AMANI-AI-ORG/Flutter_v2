@@ -85,7 +85,7 @@ class AndroidNFCCapture {
     if (onResult == null) {
       return await _methodChannel.androidUploadNFC();
     }
-    final response = await _methodChannel.androidUploadNFCWithDocumentId();
+    final response = await _methodChannel.invokeUpload('androidUploadNFC');
     return _methodChannel.deliverUploadResult(response, onResult);
   }
 

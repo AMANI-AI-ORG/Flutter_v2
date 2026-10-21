@@ -65,8 +65,9 @@ class AutoSelfie {
 
   /// Uploads the auto selfie and returns {"isSuccess": Bool, "documentId": String?}.
   /// The Core SDK's AutoSelfie.upload forwards to PoseEstimation.sharedInstance, so the
-  /// same upload is made here through PoseEstimation's uploadWithDocumentId.
-  public func uploadWithDocumentId(result: @escaping FlutterResult) {
+  /// same upload is made here through PoseEstimation's documentId upload.
+  public func upload(result: @escaping FlutterResult, returnDocumentId: Bool) {
+    guard returnDocumentId else { upload(result: result); return }
     Amani.sharedInstance.poseEstimation().upload { (isSuccess: Bool?, documentId: String?) in
       UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "AutoSelfie", to: result)
     }
