@@ -45,13 +45,20 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       let sharedSecret = arguments?["sharedSecret"] as? String
       let apiVersion = arguments?["apiVersion"] as? String ?? "v2"
       initAmaniWithEmail(server: server, customerIdCardNumber: customerIdCardNumber, email: email, password: password, useLocation: useLocation, lang: lang, sharedSecret: sharedSecret, version: apiVersion, result: result)
-    case "iOSSetUploadSource":
+    case "setUploadSource":
       guard let uploadSource = arguments?["uploadSource"] as? String,
             let source = UploadSource(rawValue: uploadSource) else {
         result(FlutterError(code: "30009", message: "Invalid uploadSource", details: nil))
         return
       }
       Amani.sharedInstance.setUploadSource(uploadSource: source)
+      result(nil)
+    case "setUploadSourceString":
+      guard let uploadSource = arguments?["uploadSource"] as? String, !uploadSource.isEmpty else {
+        result(FlutterError(code: "30009", message: "uploadSource must not be empty", details: nil))
+        return
+      }
+      Amani.sharedInstance.setUploadSource(uploadSource: uploadSource)
       result(nil)
     // ID Capture
     case "setIDCaptureType":
@@ -175,12 +182,6 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       let signature = signatureInstance ?? SignatureCapture()
       signature.upload(result: result, returnDocumentId: returnDocumentId)
     // NFC
-    /*
-    case "iOSstartNFCWithImageData":
-        let nfc = NFC()
-        let imageData = arguments?["imageData"] as! FlutterStandardTypedData
-        nfc.start(imageData: imageData, result: result)
-      */
     case "iOSstartNFCWithNviModel":
         Task {
             do {
@@ -371,4 +372,3 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
   }
   
 }
-

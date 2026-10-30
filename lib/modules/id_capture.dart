@@ -12,7 +12,6 @@ enum IdSide { front, back }
 
 class IdCapture {
   final MethodChannelAmaniSDK _methodChannel;
-  // final eventChannel = const EventChannel('amanisdk_event_channel');
   final eventChannel = const EventChannel('amanisdk_delegate_channel');
   
   IdCapture(this._methodChannel);

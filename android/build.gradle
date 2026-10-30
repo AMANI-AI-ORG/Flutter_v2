@@ -1,60 +1,3 @@
-// group 'ai.amani.flutter_amanisdk_v2'
-// version '1.0-SNAPSHOT'
-
-// buildscript {
-//     ext.kotlin_version = '1.8.20'
-//     repositories {
-//         google()
-//         mavenCentral()
-//         maven { url "https://jfrog.amani.ai/artifactory/amani-sdk"}
-//     }
-
-//     dependencies {
-//         classpath 'com.android.tools.build:gradle:7.2.0'
-//         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-//     }
-// }
-
-// rootProject.allprojects {
-//     repositories {
-//         google()
-//         mavenCentral()
-//     }
-// }
-
-// apply plugin: 'com.android.library'
-// apply plugin: 'kotlin-android'
-
-// android {
-//     compileSdkVersion 35
-
-//     namespace = 'ai.amani.flutter_amanisdk'
-
-//     compileOptions {
-//         sourceCompatibility JavaVersion.VERSION_17
-//         targetCompatibility JavaVersion.VERSION_17
-//     }
-
-//     dataBinding { enabled true }
-
-//     kotlinOptions {
-//         jvmTarget = '17'
-//     }
-
-//     sourceSets {
-//         main.java.srcDirs += 'src/main/kotlin'
-//     }
-
-//     defaultConfig {
-//         minSdkVersion 21
-//     }
-// }
-
-// dependencies {
-//     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-//     implementation 'ai.amani.android:AmaniAi:3.7.11'
-// }
-
 buildscript {
     repositories {
         google()
@@ -151,7 +94,6 @@ android {
 }
 
 dependencies {
-    // implementation 'ai.amani:Android.SDK.UI:1.3.0'
     compileOnly 'ai.amani.android:amani-speech-verifier:1.0.0'
     implementation 'ai.amani.android:AmaniAi:3.23.0'
 }

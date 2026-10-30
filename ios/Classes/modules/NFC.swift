@@ -23,30 +23,6 @@ class NFC {
     }
 }
 
- /*
-  func start(imageData: FlutterStandardTypedData, result: @escaping FlutterResult) {
-    module.start(imageBase64: imageData.data.base64EncodedString()) { (_) in
-        result(true)
-    }
-  }
-
-
-
-  //Buraya tekrar bak
- 
-  func start(result: @escaping FlutterResult) {
-    let vc = UIApplication.shared.windows.last?.rootViewController
-    
-    moduleView = module.start { _ in
-      result(true)
-    }
-    DispatchQueue.main.async {
-      vc!.view.addSubview(self.moduleView)
-      vc!.view.bringSubviewToFront(self.moduleView)
-      vc!.navigationController?.setNavigationBarHidden(true, animated: false)
-    }
-  }
-  */
   func setType(type: String, result: @escaping FlutterResult) {
     module.setType(type: type)
     result(nil)
