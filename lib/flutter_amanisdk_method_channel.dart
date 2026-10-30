@@ -35,6 +35,13 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
   }
 
   @override
+  Future<void> iOSSetUploadSource(String uploadSource) async {
+    await methodChannel.invokeMethod('iOSSetUploadSource', <String, dynamic>{
+      'uploadSource': uploadSource,
+    });
+  }
+
+  @override
   Future<bool?> startAmaniSDKWithConfigure(
     String token,
     String id,

@@ -149,6 +149,19 @@ class AmaniSDK {
     );
   }
 
+  /// Sets the upload source on iOS. Does nothing on other platforms;
+  /// Android takes the upload source from [setConfigure].
+  ///
+  /// Call this after [initAmani] or [initAmaniWithEmail], since iOS resets
+  /// the upload source to [AmaniUploadSource.kyc] while logging in.
+  Future<void> iOSSetUploadSource(AmaniUploadSource uploadSource) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return;
+    }
+    await AmaniSDKPlatform.instance
+        .iOSSetUploadSource(uploadSource.getUploadSourceString);
+  }
+
   /// Starts an SDK session with a profile [token] on Android.
   ///
   /// Completes once the native session start finishes.

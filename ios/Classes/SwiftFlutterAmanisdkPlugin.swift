@@ -45,6 +45,14 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       let sharedSecret = arguments?["sharedSecret"] as? String
       let apiVersion = arguments?["apiVersion"] as? String ?? "v2"
       initAmaniWithEmail(server: server, customerIdCardNumber: customerIdCardNumber, email: email, password: password, useLocation: useLocation, lang: lang, sharedSecret: sharedSecret, version: apiVersion, result: result)
+    case "iOSSetUploadSource":
+      guard let uploadSource = arguments?["uploadSource"] as? String,
+            let source = UploadSource(rawValue: uploadSource) else {
+        result(FlutterError(code: "30009", message: "Invalid uploadSource", details: nil))
+        return
+      }
+      Amani.sharedInstance.setUploadSource(uploadSource: source)
+      result(nil)
     // ID Capture
     case "setIDCaptureType":
       let idCapture = IdCapture()
