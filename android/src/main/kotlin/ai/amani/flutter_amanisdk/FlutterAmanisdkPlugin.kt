@@ -121,56 +121,35 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       // -------------------------
-      // Legacy init (email/pass)
-      // -------------------------
-      // "initAmaniWithEmail" -> {
-      //   val server = call.argument<String>("server")
-      //   val customerIdCardNumber = call.argument<String>("customerIdCardNumber")
-      //   val email = call.argument<String>("email")
-      //   val password = call.argument<String>("password")
-      //   val lang = call.argument<String>("lang") ?: "tr"
-      //   val useLocation = call.argument<Boolean>("useLocation") ?: false
-      //   val sharedSecret = call.argument<String>("sharedSecret")
-      //   val version = call.argument<String>("apiVersion") ?: "v2"
-
-      //   val ctx = appContext
-      //   val act = activity
-
-      //   if (server.isNullOrBlank() || customerIdCardNumber.isNullOrBlank() || email.isNullOrBlank() || password.isNullOrBlank()) {
-      //     result.error("INVALID_ARGUMENT", "server/customerIdCardNumber/email/password must not be null or empty.", null)
-      //     return
-      //   }
-      //   if (ctx == null) {
-      //     result.error("NO_CONTEXT", "Plugin is not attached to engine (context is null).", null)
-      //     return
-      //   }
-      //   if (act == null) {
-      //     result.error("NO_ACTIVITY", "Plugin is not attached to activity (activity is null).", null)
-      //     return
-      //   }
-
-      //   act.runOnUiThread {
-      //     initAmaniWithEmail(
-      //       context = ctx,
-      //       activity = act,
-      //       server = server,
-      //       customerIdCardNumber = customerIdCardNumber,
-      //       email = email,
-      //       password = password,
-      //       lang = lang,
-      //       useLocation = useLocation,
-      //       sharedSecret = sharedSecret,
-      //       version = version,
-      //       result = result
-      //     )
-      //   }
-      // }
-
-      // -------------------------
       // Configure + startSession (doc-uyumlu)
       // -------------------------
       "setConfigure" -> setConfigure(call, result)
       "startAmaniSDKWithConfigure" -> startAmaniSDKWithConfigure(call, result)
+
+      "setUploadSource" -> {
+        val uploadSource = when (call.argument<String>("uploadSource")) {
+          "VIDEO" -> UploadSource.VIDEO
+          "PASSWORD" -> UploadSource.PASSWORD
+          "KYC" -> UploadSource.KYC
+          else -> null
+        }
+        if (uploadSource == null) {
+          result.error("INVALID_ARGUMENT", "Argument 'uploadSource' is invalid.", null)
+          return
+        }
+        Amani.setUploadSource(uploadSource)
+        result.success(null)
+      }
+
+      "setUploadSourceString" -> {
+        val uploadSource = call.argument<String>("uploadSource")
+        if (uploadSource.isNullOrBlank()) {
+          result.error("INVALID_ARGUMENT", "Argument 'uploadSource' must not be null or empty.", null)
+          return
+        }
+        Amani.setUploadSource(uploadSource)
+        result.success(null)
+      }
 
       // -------------------------
       // IdCapture
@@ -637,7 +616,6 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
     }
 
     try {
-      // Dokümana uygun parametre isimleri: context/server/version
       Amani.configure(
         context = context,
         server = server,
@@ -731,7 +709,6 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
     val amaniVersion = if (version == "v2") AmaniVersion.V2 else AmaniVersion.V1
 
     try {
-      // Yeni yapı: configure
       Amani.configure(
         context = context,
         server = server,
@@ -761,52 +738,6 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       result.error("INIT_FAILED", "initAmani failed: ${e.message}", null)
     }
   }
-
-  // private fun initAmaniWithEmail(
-  //   context: Context,
-  //   activity: Activity,
-  //   server: String,
-  //   customerIdCardNumber: String,
-  //   email: String,
-  //   password: String,
-  //   lang: String,
-  //   useLocation: Boolean,
-  //   sharedSecret: String?,
-  //   version: String,
-  //   result: MethodChannel.Result
-  // ) {
-  //   val amaniVersion = if (version == "v2") AmaniVersion.V2 else AmaniVersion.V1
-
-  //   try {
-  //     Amani.configure(
-  //       context = context,
-  //       server = server,
-  //       sharedSecret = sharedSecret,
-  //       version = amaniVersion,
-  //       uploadSource = UploadSource.KYC,
-  //       enabledFeatures = emptyList()
-  //     )
-  //   } catch (e: Exception) {
-  //     result.error("CONFIGURE_FAILED", "Amani.configure failed: ${e.message}", null)
-  //     return
-  //   }
-
-  //   // Email initAmani imzası sende farklı olabilir; en sık doğru sıra: (activity, id, email, password, lang, geoLocation, callback)
-  //   try {
-  //     Amani.sharedInstance().initAmani(
-  //       activity,
-  //       customerIdCardNumber,
-  //       email,
-  //       password,
-  //       lang,
-  //       useLocation
-  //     ) { loggedIn ->
-  //       result.success(loggedIn)
-  //     }
-  //   } catch (e: Exception) {
-  //     result.error("INIT_FAILED", "initAmaniWithEmail failed: ${e.message}", null)
-  //   }
-  // }
 
   private fun getCustomerInfo(result: MethodChannel.Result) {
     Amani.sharedInstance().CustomerDetail().getCustomerDetail(object : CustomerDetailObserver {

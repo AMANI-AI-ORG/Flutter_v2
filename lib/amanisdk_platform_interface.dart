@@ -41,6 +41,15 @@ abstract class AmaniSDKPlatform extends PlatformInterface {
     throw UnimplementedError('configure() has not been implemented.');
   }
 
+  Future<void> setUploadSource(String uploadSource) {
+    throw UnimplementedError('setUploadSource() has not been implemented.');
+  }
+
+  Future<void> setUploadSourceString(String uploadSource) {
+    throw UnimplementedError(
+        'setUploadSourceString() has not been implemented.');
+  }
+
   Future<bool?> startAmaniSDKWithConfigure(
     String token,
     String id,

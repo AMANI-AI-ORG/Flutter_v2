@@ -31,8 +31,6 @@ class AmaniSDK {
   void Amanisdk() {}
 
   final MethodChannelAmaniSDK _methodChannel = MethodChannelAmaniSDK();
-  // final delegateChannel = const MethodChannel("amanisdk_delegate_channel");
-  // final delegateEventChannel = const EventChannel("amanisdk_delegate_channel");
   static const EventChannel _delegateEventChannel = EventChannel("amanisdk_delegate_channel");
 
   static Stream<dynamic>? _cachedDelegateStream;
@@ -147,6 +145,36 @@ class AmaniSDK {
       sharedSecret: sharedSecret,
       uploadSource: uploadSource.getUploadSourceString,
     );
+  }
+
+  /// Sets the upload source on Android and iOS.
+  ///
+  /// The SDK init methods overwrite this value, so call it after them:
+  /// - Android: after [setConfigure] and before [startAmaniSDKWithConfigure],
+  ///   so the session starts with this upload source. With [initAmani] the
+  ///   value only applies to uploads made after login, because [initAmani]
+  ///   configures and logs in with `KYC` in one call.
+  /// - iOS: after [initAmani] or [initAmaniWithEmail]. Both reset the upload
+  ///   source to [AmaniUploadSource.kyc], so call it again after every re-init.
+  Future<void> setUploadSource(AmaniUploadSource uploadSource) async {
+    await AmaniSDKPlatform.instance
+        .setUploadSource(uploadSource.getUploadSourceString);
+  }
+
+  /// Sets the upload source with a raw string on Android and iOS, for values
+  /// that [AmaniUploadSource] does not cover.
+  ///
+  /// The string is passed to the native SDK unchanged and is not validated.
+  /// Each native SDK expects its own spelling, for example `"Video"` on
+  /// Android and `"VIDEO"` on iOS. Prefer [setUploadSource] when the value
+  /// is one of [AmaniUploadSource]. Call it at the same point as
+  /// [setUploadSource].
+  Future<void> setUploadSourceString(String uploadSource) async {
+    if (uploadSource.isEmpty) {
+      throw ArgumentError.value(
+          uploadSource, 'uploadSource', 'must not be empty');
+    }
+    await AmaniSDKPlatform.instance.setUploadSourceString(uploadSource);
   }
 
   /// Starts an SDK session with a profile [token] on Android.

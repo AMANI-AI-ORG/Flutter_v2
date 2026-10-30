@@ -26,7 +26,6 @@ class _DocumentCaputureScreenState extends State<DocumentCaputureScreen> {
 
     final fileConvertUint8List =
         await File(result.files.first.path!).readAsBytes();
-    // final mineType = lookupMimeType(result.files.first.path!);
     FileTypeModel documentFile =
         FileTypeModel(data: fileConvertUint8List, dataType: "application/pdf");
     _documentCaptureModule.startUploadWithFiles([documentFile],
