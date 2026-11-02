@@ -10,12 +10,3 @@ class FileTypeModel {
     return {"data": data, "dataType": dataType};
   }
 }
-/*
-enum FileType{
-  jpg = "image/jpeg";
-  png = "image/png";
-  bmp = "image/bmp";
-  webp = "image/webp";
-  pdf = "application/pdf";
-}
-*/

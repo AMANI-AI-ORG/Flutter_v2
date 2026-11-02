@@ -16,6 +16,7 @@ On the [example folder](https://github.com/AmaniTechnologiesLtd/Flutter_v2/tree/
     - [iOS Permissions](#ios-permissions)
     - [Adding the flutter plugin](#adding-the-flutter-plugin)
 - [Usage](#usage)
+    - [Upload source](#upload-source)
     - [ID Capture module](#idcapture-module)
     - [Selfie module](#selfie-module)
     - [Auto selfie module](#autoselfie-module)
@@ -254,6 +255,64 @@ Call the `setDelegateMethods` with function with the functions you just created.
 ```dart
 AmaniSDK().setDelegateMethods(
   amaniOnError, amaniOnProfileStatus, amaniOnStepResult);
+```
+
+### Upload source
+The upload source tells the Amani server which flow the uploaded documents belong to. It defaults to `AmaniUploadSource.kyc`. Available values are `kyc`, `video` and `password`.
+
+Two methods work on both Android and iOS:
+
+| Method | Argument | Use for |
+|---|---|---|
+| `setUploadSource` | `AmaniUploadSource` | The values in the enum (recommended) |
+| `setUploadSourceString` | `String` | Values that the enum does not cover |
+
+`setUploadSourceString` passes the string to the native SDK unchanged, without validating it. Each native SDK expects its own spelling, for example `"Video"` on Android and `"VIDEO"` on iOS.
+
+The SDK init methods overwrite the upload source, so call either method after them:
+
+| Platform | When to call |
+|---|---|
+| Android | After `setConfigure`, before `startAmaniSDKWithConfigure` |
+| iOS | After `initAmani` or `initAmaniWithEmail` |
+
+On Android, `setConfigure(uploadSource: ...)` also takes the upload source directly. `initAmani` always configures the SDK with `kyc`. A value you set after `initAmani` only applies to uploads made after login.
+
+On iOS, `initAmani` and `initAmaniWithEmail` reset the upload source to `kyc`. A value set before them is discarded, so set it again after every re-init.
+
+```dart
+import 'dart:io';
+import 'package:flutter_amanisdk/amani_sdk.dart';
+import 'package:flutter_amanisdk/amaniAndroidConfigure.dart'; // AmaniUploadSource
+
+final amani = AmaniSDK();
+
+// 1. Platform-specific init
+if (Platform.isAndroid) {
+  await amani.setConfigure(server: "https://server.example");
+} else if (Platform.isIOS) {
+  await amani.initAmani(
+    server: "https://server.example",
+    customerToken: "customer_token",
+    customerIdCardNumber: "customer_id_card_number",
+    lang: "tr",
+    useLocation: true,
+  );
+}
+
+// 2. Shared: one call works on both platforms
+await amani.setUploadSource(AmaniUploadSource.video);
+
+// 3. Android only: start the session
+if (Platform.isAndroid) {
+  await amani.startAmaniSDKWithConfigure(token: "profile_token", id: "id_number");
+}
+```
+
+For a value outside `AmaniUploadSource`, call `setUploadSourceString` in step 2 instead, using each native SDK's own spelling:
+
+```dart
+await amani.setUploadSourceString(Platform.isIOS ? "PHONE_UPDATE" : "Phone_update");
 ```
 
 ### IDCapture module
