@@ -22,7 +22,7 @@ class _IdCaptureScreenState extends State<IdCaptureScreen> {
 
   Future<void> initSDK() async {
     try {
-      await _idCaptureModule.setType("TUR_ID_1");
+      await _idCaptureModule.setType("XXX_ID");
       debugPrint("setType ok");
 
       await _idCaptureModule.setHologramDetection(false);

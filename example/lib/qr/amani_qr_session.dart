@@ -150,6 +150,7 @@ class AmaniQrSession {
           AmaniAndroidDynamicFeature.selfiePoseEstimation,
         ],
       );
+      await sdk.setUploadSource(AmaniUploadSource.password);
       final result = await sdk.startAmaniSDKWithConfigure(
         token: data.accessToken,
         id: id,
@@ -169,6 +170,8 @@ class AmaniQrSession {
         apiVersion: AmaniApiVersion.v2,
         lang: lang,
       );
+      // initAmani resets the upload source to KYC, so set it afterwards.
+      if (isSuccess) await sdk.setUploadSource(AmaniUploadSource.password);
     }
 
     isStarted = isSuccess;
