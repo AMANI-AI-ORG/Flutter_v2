@@ -46,7 +46,7 @@ extension DelegateEventHandler: AmaniDelegate {
     }
   }
   
-  public func onStepModel(customerId: String, rules: [AmaniSDK.KYCRuleModel]?) {
+  public func onStepModel(customerId: String, documentId: String, rules: [AmaniSDK.KYCRuleModel]?) {
     do {
       let jsonData = try JSONEncoder().encode(["rules": rules])
       print("[AmaniBridge] onStepModel received (\(jsonData.count) bytes)")

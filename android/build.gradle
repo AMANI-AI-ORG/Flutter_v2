@@ -95,5 +95,5 @@ android {
 
 dependencies {
     compileOnly 'ai.amani.android:amani-speech-verifier:1.0.0'
-    implementation 'ai.amani.android:AmaniAi:3.23.0'
+    implementation 'ai.amani.android:AmaniAi:3.23.1'
 }

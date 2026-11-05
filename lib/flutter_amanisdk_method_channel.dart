@@ -215,7 +215,8 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
       required bool useLocation,
       required String lang,
       required String apiVersion,
-      String? sharedSecret}) async {
+      String? sharedSecret,
+      String uploadSource = "KYC"}) async {
     try {
       final bool loginResult = await methodChannel.invokeMethod('initAmani', {
         "server": server,
@@ -225,6 +226,7 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
         "lang": lang,
         "sharedSecret": sharedSecret,
         "apiVersion": apiVersion,
+        "uploadSource": uploadSource,
       });
       return loginResult;
     } catch (err) {
@@ -702,7 +704,8 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
       required bool useLocation,
       required String apiVersion,
       required String lang,
-      String? sharedSecret}) async {
+      String? sharedSecret,
+      String uploadSource = "KYC"}) async {
     try {
       final bool loginResult =
           await methodChannel.invokeMethod('initAmaniWithEmail', {
@@ -713,7 +716,8 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
         "useLocation": useLocation,
         "lang": lang,
         "sharedSecret": sharedSecret,
-        "apiVersion": apiVersion
+        "apiVersion": apiVersion,
+        "uploadSource": uploadSource,
       });
       return loginResult;
     } catch (err) {

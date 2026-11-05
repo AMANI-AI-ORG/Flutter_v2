@@ -7,6 +7,9 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
   private var speechVerifierInstance: SpeechVerifier?
   private var signatureInstance: SignatureCapture?
   static var eventHandler = DelegateEventHandler()
+  /// Token session of the last initAmani call, reused by the standalone Speech Verifier SDK.
+  static var sessionServerURL: String?
+  static var sessionToken: String?
  
   public static func register(with registrar: FlutterPluginRegistrar) {
     let methodChannel = FlutterMethodChannel(name: "amanisdk_method_channel", binaryMessenger: registrar.messenger())
@@ -27,24 +30,36 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     let returnDocumentId = arguments?["returnDocumentId"] as? Bool ?? false
     switch call.method {
     case "initAmani":
+      // Optional: nil means "not set", but a provided value must not be empty or blank.
+      let sharedSecret = arguments?["sharedSecret"] as? String
+      if let secret = sharedSecret, secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        result(FlutterError(code: "30009", message: "sharedSecret must not be empty when provided", details: nil))
+        return
+      }
       let server = arguments?["server"] as! String
       let customerIdCardNumber = arguments?["customerIdCardNumber"] as! String
       let customerToken = arguments?["customerToken"] as! String
       let lang = arguments?["lang"] as! String
       let useLocation = arguments?["useLocation"] as! Bool
-      let sharedSecret = arguments?["sharedSecret"] as? String
       let apiVersion = arguments?["apiVersion"] as? String ?? "v2"
-      initAmani(server: server, customerIdCardNumber: customerIdCardNumber, customerToken: customerToken, useLocation: useLocation, lang: lang , sharedSecret: sharedSecret, version: apiVersion, result: result)
+      let uploadSource = arguments?["uploadSource"] as? String ?? "KYC"
+      initAmani(server: server, customerIdCardNumber: customerIdCardNumber, customerToken: customerToken, useLocation: useLocation, lang: lang , sharedSecret: sharedSecret, version: apiVersion, uploadSource: uploadSource, result: result)
     case "initAmaniWithEmail":
+      // Optional: nil means "not set", but a provided value must not be empty or blank.
+      let sharedSecret = arguments?["sharedSecret"] as? String
+      if let secret = sharedSecret, secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        result(FlutterError(code: "30009", message: "sharedSecret must not be empty when provided", details: nil))
+        return
+      }
       let server = arguments?["server"] as! String
       let customerIdCardNumber = arguments?["customerIdCardNumber"] as! String
       let email = arguments?["email"] as! String
       let password = arguments?["password"] as! String
       let lang = arguments?["lang"] as! String
       let useLocation = arguments?["useLocation"] as! Bool
-      let sharedSecret = arguments?["sharedSecret"] as? String
       let apiVersion = arguments?["apiVersion"] as? String ?? "v2"
-      initAmaniWithEmail(server: server, customerIdCardNumber: customerIdCardNumber, email: email, password: password, useLocation: useLocation, lang: lang, sharedSecret: sharedSecret, version: apiVersion, result: result)
+      let uploadSource = arguments?["uploadSource"] as? String ?? "KYC"
+      initAmaniWithEmail(server: server, customerIdCardNumber: customerIdCardNumber, email: email, password: password, useLocation: useLocation, lang: lang, sharedSecret: sharedSecret, version: apiVersion, uploadSource: uploadSource, result: result)
     case "setUploadSource":
       guard let uploadSource = arguments?["uploadSource"] as? String,
             let source = UploadSource(rawValue: uploadSource) else {
@@ -230,6 +245,12 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "30009", message: "server and token are required", details: nil))
         return
       }
+      // Optional: nil means "not set", but a provided value must not be empty or blank.
+      if let sharedSecret = arguments?["sharedSecret"] as? String,
+         sharedSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        result(FlutterError(code: "30009", message: "sharedSecret must not be empty when provided", details: nil))
+        return
+      }
       BioLoginCapture.shared.initBioLogin(
         server: server,
         token: token,
@@ -295,13 +316,16 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
                          lang: String,
                          sharedSecret: String?,
                          version: String = "v2",
+                         uploadSource: String = "KYC",
                          result: @escaping FlutterResult) {
     let customer = CustomerRequestModel(name: nil, email: nil, phone: nil, idCardNumber: customerIdCardNumber)
     let apiVersion = version == "v2" ? ApiVersions.v2 : ApiVersions.v1
     
+    SwiftFlutterAmanisdkPlugin.sessionServerURL = server
+    SwiftFlutterAmanisdkPlugin.sessionToken = customerToken
     Amani.sharedInstance.setDelegate(delegate: SwiftFlutterAmanisdkPlugin.eventHandler)
     Amani.sharedInstance.setMRZDelegate(delegate: SwiftFlutterAmanisdkPlugin.eventHandler)
-    Amani.sharedInstance.initAmani(server: server, token: customerToken, sharedSecret: sharedSecret, customer: customer, language: lang, apiVersion: apiVersion) { (customerRes, err) in
+    Amani.sharedInstance.initAmani(server: server, token: customerToken, sharedSecret: sharedSecret, customer: customer, language: lang, uploadSource: uploadSource, apiVersion: apiVersion) { (customerRes, err) in
       if customerRes != nil {
         result(true)
       } else if let err = err {
@@ -318,12 +342,13 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
                         lang: String,
                         sharedSecret: String?,
                         version: String = "v2",
+                        uploadSource: String = "KYC",
                         result: @escaping FlutterResult) {
     let customer = CustomerRequestModel(name: nil, email: nil, phone: nil, idCardNumber: customerIdCardNumber)
     let apiVersion: ApiVersions = version == "v2" ? .v2 : .v1
     Amani.sharedInstance.setDelegate(delegate: SwiftFlutterAmanisdkPlugin.eventHandler)
     Amani.sharedInstance.setMRZDelegate(delegate: SwiftFlutterAmanisdkPlugin.eventHandler)
-    Amani.sharedInstance.initAmani(server: server, userName: email, password: password, sharedSecret: sharedSecret, customer: customer, language: lang, apiVersion: apiVersion) { customerRes, err in
+    Amani.sharedInstance.initAmani(server: server, userName: email, password: password, sharedSecret: sharedSecret, customer: customer, language: lang, uploadSource: uploadSource, apiVersion: apiVersion) { customerRes, err in
       if customerRes != nil {
         result(true)
       } else if let err = err {

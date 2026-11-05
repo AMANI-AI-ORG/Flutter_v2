@@ -28,6 +28,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
   private lateinit var nfcChannel: MethodChannel
   private lateinit var bioLoginChannel: MethodChannel
   private lateinit var delegateChannel: EventChannel
+  private val delegateHandler = AmaniDelegateEventHandler()
 
   private var activity: Activity? = null
   private var appContext: Context? = null
@@ -44,11 +45,13 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
     bioLoginChannel = MethodChannel(binding.binaryMessenger, "amanisdk_biologin_channel")
 
     delegateChannel = EventChannel(binding.binaryMessenger, "amanisdk_delegate_channel")
-    delegateChannel.setStreamHandler(AmaniDelegateEventHandler())
+    delegateChannel.setStreamHandler(delegateHandler)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    delegateChannel.setStreamHandler(null)
+    delegateHandler.dispose()
     appContext = null
     activity = null
     isConfigured = false
@@ -93,6 +96,11 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
 
         if (server.isNullOrBlank() || customerIdCardNumber.isNullOrBlank() || customerToken.isNullOrBlank()) {
           result.error("INVALID_ARGUMENT", "server/customerIdCardNumber/customerToken must not be null or empty.", null)
+          return
+        }
+        // Optional: null means "not set", but a provided value must not be empty or blank.
+        if (sharedSecret != null && sharedSecret.isBlank()) {
+          result.error("INVALID_ARGUMENT", "sharedSecret must not be empty when provided.", null)
           return
         }
         if (ctx == null) {
@@ -458,6 +466,11 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("INVALID_ARGUMENT", "server and token must not be null or empty.", null)
           return
         }
+        // Optional: null means "not set", but a provided value must not be empty or blank.
+        if (sharedSecret != null && sharedSecret.isBlank()) {
+          result.error("INVALID_ARGUMENT", "sharedSecret must not be empty when provided.", null)
+          return
+        }
 
         BioLogin.instance.initBioLogin(
           server,
@@ -599,6 +612,11 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
     }
 
     val sharedSecret = call.argument<String>("sharedSecret")
+    // Optional: null means "not set", but a provided value must not be empty or blank.
+    if (sharedSecret != null && sharedSecret.isBlank()) {
+      result.error("INVALID_ARGUMENT", "Argument 'sharedSecret' must not be empty when provided.", null)
+      return
+    }
 
     val uploadSourceString = call.argument<String>("uploadSource")
     val uploadSource = when (uploadSourceString) {
@@ -625,6 +643,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         enabledFeatures = dynamicFeatures
       )
       isConfigured = true
+      delegateHandler.onSdkConfigured()
       result.success(null)
     } catch (e: Exception) {
       result.error("CONFIGURE_FAILED", "Amani.configure failed: ${e.message}", null)
@@ -680,6 +699,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
             userEmail = email,
             callback = { isSuccess ->
                 Log.d("AmaniFlutterBridge", "startSession completed: $isSuccess, language: $lang")
+                delegateHandler.attachToSdk()
                 result.success(isSuccess)
             }
         )
@@ -717,6 +737,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         uploadSource = UploadSource.KYC,
         enabledFeatures = emptyList()
       )
+      delegateHandler.onSdkConfigured()
     } catch (e: Exception) {
       result.error("CONFIGURE_FAILED", "Amani.configure failed: ${e.message}", null)
       return
@@ -731,6 +752,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         lang = lang,
         geoLocation = useLocation,
         callback = { loggedIn ->
+          delegateHandler.attachToSdk()
           result.success(loggedIn)
         }
       )

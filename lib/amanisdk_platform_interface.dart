@@ -89,6 +89,9 @@ abstract class AmaniSDKPlatform extends PlatformInterface {
 
     /// Optional shared secret
     String? sharedSecret,
+
+    /// Upload source the session is opened with (iOS)
+    String uploadSource = "KYC",
   }) {
     throw UnimplementedError('initAmani() has not been implemented.');
   }
@@ -346,6 +349,7 @@ abstract class AmaniSDKPlatform extends PlatformInterface {
     required String lang,
     required String apiVersion,
     String? sharedSecret,
+    String uploadSource = "KYC",
   }) {
     throw UnimplementedError('initAmaniWithEmail() has not been implemented.');
   }
