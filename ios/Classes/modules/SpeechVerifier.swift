@@ -1,9 +1,10 @@
 import AmaniSDK
+import AmaniSpeechVerifier
 import Flutter
 import UIKit
 
 class SpeechVerifier {
-  private var module: AmaniSDK.SpeechVerifier?
+  private var module: AmaniSpeechVerifier.SpeechVerifier?
   private var sdkView: SDKView!
 
   public func start(settingsJSON: String, result: @escaping FlutterResult) {
@@ -40,19 +41,29 @@ class SpeechVerifier {
 
     let vc = UIApplication.shared.windows.last?.rootViewController
 
-    // Build the Core SDK verifier from the decoded settings.
-    let verifier = Amani.sharedInstance.speechVerifier()
+    guard let serverURL = SwiftFlutterAmanisdkPlugin.sessionServerURL,
+          let token = SwiftFlutterAmanisdkPlugin.sessionToken else {
+      result(FlutterError(
+        code: "30033",
+        message: "Speech Verifier needs a token session. Call initAmani first.",
+        details: nil
+      ))
+      return
+    }
+
+    let builder = AmaniSpeechVerifier.SpeechVerifier.Builder()
+      .session(serverURL: serverURL, token: token)
       .documentType(settings.type)
-      .setVideoRecording(enabled: settings.videoRecording)
-      .setTimeout(seconds: settings.timeoutSeconds)
+      .videoRecording(settings.videoRecording)
+      .timeout(settings.timeoutSeconds)
 
     // Steps (spokenText + identityQuestion), preserving order.
     let stepConfigurations = settings.steps.compactMap { $0.toCoreConfiguration() }
-    verifier.verificationSteps(stepConfigurations)
+    builder.verificationSteps(stepConfigurations)
 
     // Manual identity answers (optional).
     if let answers = settings.identityAnswers {
-      verifier.identityAnswers(
+      builder.identityAnswers(
         idNumber: answers.idNumber,
         motherName: answers.motherName,
         fatherName: answers.fatherName,
@@ -62,12 +73,12 @@ class SpeechVerifier {
 
     // Appearance (optional).
     if let appearance = settings.appearance?.toCoreAppearance() {
-      verifier.setAppearance(appearance)
+      builder.appearance(appearance)
     }
 
     var didReturn = false
 
-  verifier
+  builder
    .onSuccess { [weak self] success in
     print("SV bridge onSuccess fired, success =", success)
     guard success == true, !didReturn else {
@@ -87,12 +98,9 @@ class SpeechVerifier {
         // the view up so the user can retry, matching the native example.
       }
 
-    print("SV verifier instance after handlers:", ObjectIdentifier(verifier))
-    self.module = verifier
-
-
     do {
-      print("SV about to call start on:", ObjectIdentifier(verifier))
+      let verifier = try builder.build()
+      self.module = verifier
       guard let moduleView = try verifier.start() else {
         result(FlutterError(
           code: "30032",
@@ -127,8 +135,9 @@ class SpeechVerifier {
       UploadResultPayload.send(isSuccess: false, documentId: nil, module: "SpeechVerifier", to: result)
       return
     }
-    module.upload(location: nil) { (isSuccess: Bool?, documentId: String?) in
-      UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "SpeechVerifier", to: result)
+    // The standalone SDK's upload does not report a documentId.
+    module.upload(location: nil) { (isSuccess: Bool?) in
+      UploadResultPayload.send(isSuccess: isSuccess, documentId: nil, module: "SpeechVerifier", to: result)
     }
   }
 }

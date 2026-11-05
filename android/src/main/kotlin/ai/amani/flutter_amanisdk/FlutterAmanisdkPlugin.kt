@@ -98,6 +98,11 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("INVALID_ARGUMENT", "server/customerIdCardNumber/customerToken must not be null or empty.", null)
           return
         }
+        // Optional: null means "not set", but a provided value must not be empty or blank.
+        if (sharedSecret != null && sharedSecret.isBlank()) {
+          result.error("INVALID_ARGUMENT", "sharedSecret must not be empty when provided.", null)
+          return
+        }
         if (ctx == null) {
           result.error("NO_CONTEXT", "Plugin is not attached to engine (context is null).", null)
           return
@@ -461,6 +466,11 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("INVALID_ARGUMENT", "server and token must not be null or empty.", null)
           return
         }
+        // Optional: null means "not set", but a provided value must not be empty or blank.
+        if (sharedSecret != null && sharedSecret.isBlank()) {
+          result.error("INVALID_ARGUMENT", "sharedSecret must not be empty when provided.", null)
+          return
+        }
 
         BioLogin.instance.initBioLogin(
           server,
@@ -602,6 +612,11 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
     }
 
     val sharedSecret = call.argument<String>("sharedSecret")
+    // Optional: null means "not set", but a provided value must not be empty or blank.
+    if (sharedSecret != null && sharedSecret.isBlank()) {
+      result.error("INVALID_ARGUMENT", "Argument 'sharedSecret' must not be empty when provided.", null)
+      return
+    }
 
     val uploadSourceString = call.argument<String>("uploadSource")
     val uploadSource = when (uploadSourceString) {

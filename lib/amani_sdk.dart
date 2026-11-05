@@ -107,8 +107,16 @@ class AmaniSDK {
     /// it's specified by Amani to you.
     AmaniApiVersion? apiVersion,
 
-    /// Optional shared secret
+    /// Optional shared secret. Leave it null when unused. A value that is empty
+    /// or only whitespace is rejected by the native bridge with an
+    /// `INVALID_ARGUMENT` error (Android) / `30009` (iOS).
     String? sharedSecret,
+
+    /// Upload source the iOS session is opened with. The SSE stream and rule
+    /// statuses follow this value, so set it here instead of calling
+    /// [setUploadSource] after init when documents are uploaded with a source
+    /// other than [AmaniUploadSource.kyc].
+    AmaniUploadSource uploadSource = AmaniUploadSource.kyc,
   }) async {
     if (server.isEmpty) {
       throw Exception("server parameter cannot be empty string");
@@ -126,6 +134,7 @@ class AmaniSDK {
         useLocation: useLocation,
         sharedSecret: sharedSecret,
         apiVersion: apiV,
+        uploadSource: uploadSource.getUploadSourceString,
       );
       return login;
     } catch (err) {
@@ -302,8 +311,13 @@ class AmaniSDK {
     /// ApiVersion
     AmaniApiVersion? apiVersion,
 
-    /// Optional shared secret
+    /// Optional shared secret. Leave it null when unused. A value that is empty
+    /// or only whitespace is rejected by the native bridge with an
+    /// `INVALID_ARGUMENT` error (Android) / `30009` (iOS).
     String? sharedSecret,
+
+    /// Upload source the iOS session is opened with, see [initAmani].
+    AmaniUploadSource uploadSource = AmaniUploadSource.kyc,
   }) async {
     if (server.isEmpty) {
       throw Exception("server parameter cannot be empty string");
@@ -326,7 +340,8 @@ class AmaniSDK {
           lang: lang,
           useLocation: useLocation,
           sharedSecret: sharedSecret,
-          apiVersion: apiV);
+          apiVersion: apiV,
+          uploadSource: uploadSource.getUploadSourceString);
       return login;
     } catch (err) {
       rethrow;
