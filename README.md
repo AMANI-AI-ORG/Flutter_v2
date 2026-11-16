@@ -38,7 +38,10 @@ rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
-        maven { url "https://jfrog.amani.ai/artifactory/amani-sdk" }
+        maven {
+            url "https://raw.githubusercontent.com/AMANI-AI-ORG/android-core-sdk/main/maven"
+            content { includeGroup "ai.amani.android" }
+        }
         jcenter()
     }
 }

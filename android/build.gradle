@@ -16,7 +16,8 @@ rootProject.allprojects {
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
         maven {
-            url = "https://jfrog.amani.ai/artifactory/amani-sdk"
+            url = "https://raw.githubusercontent.com/AMANI-AI-ORG/android-core-sdk/main/maven"
+            content { includeGroup "ai.amani.android" }
         }
         maven {
             url = "https://jfrog.amani.ai/artifactory/amani-speech-verifier"
@@ -96,4 +97,9 @@ android {
 dependencies {
     compileOnly 'ai.amani.android:amani-speech-verifier:1.0.0'
     implementation 'ai.amani.android:AmaniAi:3.23.1'
+
+    // The AmaniAi POM published on GitHub Maven declares these with `runtime` scope,
+    // so they are not on this module's compile classpath. The plugin code uses them directly.
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'org.jetbrains.kotlin:kotlin-parcelize-runtime:1.8.20'
 }
