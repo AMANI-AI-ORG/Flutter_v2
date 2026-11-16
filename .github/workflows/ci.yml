@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - feat/v3
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.32.8"
+  JAVA_VERSION: "17"
+
+jobs:
+  analyze:
+    name: Analyze & package validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          (cd example && flutter pub get)
+
+      - name: Static analysis
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Unit tests
+        run: |
+          if [ -d test ]; then
+            flutter test
+          else
+            echo "No unit tests found - skipping."
+          fi
+
+      - name: Package validation
+        run: flutter pub publish --dry-run
+
+  build-android:
+    name: Build example (Android debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build debug APK
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build apk --debug
+
+  build-ios:
+    name: Build example (iOS, no codesign)
+    runs-on: macos-15
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build iOS without signing
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build ios --debug --no-codesign
+

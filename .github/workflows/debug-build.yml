@@ -1,0 +1,220 @@
+
+name: Debug Build (internal testing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        options:
+          - both
+          - android
+          - ios
+        default: both
+
+      ios_build_mode:
+        description: iOS build mode
+        type: choice
+        options:
+          - release
+          - profile
+        default: release
+
+      ios_export_method:
+        description: iOS export method
+        type: choice
+        options:
+          - debugging
+          - release-testing
+        default: debugging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: debug-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.32.8"
+  JAVA_VERSION: "17"
+
+jobs:
+  android-apk:
+    name: Android debug APK
+    if: ${{ inputs.platform == 'both' || inputs.platform == 'android' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build debug APK
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build apk --debug
+
+      - name: Generate artifact name
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | tr -d '"')"
+          echo "name=flutter_amanisdk-${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.name }}-android-debug-apk
+          path: example/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-ipa:
+    name: iOS IPA
+    if: ${{ inputs.platform == 'both' || inputs.platform == 'ios' }}
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      TEAM_ID: 24V9HW64Y3
+
+    steps:
+      - name: Check signing secrets
+        shell: bash
+        run: |
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing repository secret $v"
+              exit 1
+            fi
+          done
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Write App Store Connect API key
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+
+          KEY_PATH="$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+
+          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$KEY_PATH"
+
+          chmod 600 "$KEY_PATH"
+
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Prepare Flutter and CocoaPods
+        working-directory: example
+        shell: bash
+        run: |
+          flutter pub get
+
+          flutter build ios \
+            --${{ inputs.ios_build_mode }} \
+            --no-codesign
+
+      - name: Archive iOS app
+        working-directory: example/ios
+        shell: bash
+        env:
+          IOS_CONFIGURATION: ${{ inputs.ios_build_mode == 'profile' && 'Profile' || 'Release' }}
+        run: |
+          xcodebuild archive \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration "$IOS_CONFIGURATION" \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Export IPA
+        working-directory: example/ios
+        shell: bash
+        env:
+          EXPORT_METHOD: ${{ inputs.ios_export_method }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${EXPORT_METHOD}</string>
+            <key>teamID</key>
+            <string>${TEAM_ID}</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+          ls -la "$RUNNER_TEMP/ipa"
+
+      - name: Generate artifact name
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | tr -d '"')"
+
+          echo "name=flutter_amanisdk-${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.name }}-ios-ipa
+          path: ${{ runner.temp }}/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Cleanup API key
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/keys"

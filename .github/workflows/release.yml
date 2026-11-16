@@ -1,0 +1,208 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      validate_only:
+        description: "Validate release pipeline without publishing"
+        type: boolean
+        required: true
+        default: true
+
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.32.8"
+
+jobs:
+  verify-release:
+    name: Verify release configuration
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check manual validation branch
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_NAME" != "feat/v3" ]; then
+            echo "::error::Manual release validation is restricted to feat/v3"
+            exit 1
+          fi
+
+          if [ "${{ inputs.validate_only }}" != "true" ]; then
+            echo "::error::Manual runs must use validate_only=true"
+            exit 1
+          fi
+
+          echo "Validation-only mode on feat/v3."
+          echo "No GitHub Release or pub.dev publish will run."
+
+      - name: Validate version
+        id: version
+        shell: bash
+        run: |
+          PUB_VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}' | tr -d '"')"
+
+          if [ -z "$PUB_VERSION" ]; then
+            echo "::error::Version missing from pubspec.yaml"
+            exit 1
+          fi
+
+          echo "version=$PUB_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "Package version: $PUB_VERSION"
+
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+            if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Invalid release tag: $GITHUB_REF_NAME"
+              exit 1
+            fi
+
+            if [ "$TAG_VERSION" != "$PUB_VERSION" ]; then
+              echo "::error::Tag $TAG_VERSION does not match pubspec version $PUB_VERSION"
+              exit 1
+            fi
+          fi
+
+      - name: Verify tag belongs to main
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: |
+          git fetch origin main
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit is not reachable from main"
+            exit 1
+          fi
+
+      - name: Validate CHANGELOG
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md not found"
+            exit 1
+          fi
+
+          if ! grep -Fq "## $VERSION" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+
+      - name: Verify publish configuration
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          echo "Release configuration validation completed."
+          echo "Publishing is disabled for manual validation."
+
+  validate:
+    name: Run CI validations
+    needs: verify-release
+    uses: ./.github/workflows/ci.yml
+
+  validation-summary:
+    name: Validation summary
+    needs:
+      - verify-release
+      - validate
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print validation result
+        run: |
+          echo "Release pipeline validated successfully."
+          echo "Branch: $GITHUB_REF_NAME"
+          echo "No package was published."
+
+  github-release:
+    name: GitHub Release
+    needs:
+      - verify-release
+      - validate
+
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract release notes
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify-release.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '
+            $0 == "## " v {found=1; next}
+            found && /^## / {exit}
+            found {print}
+          ' CHANGELOG.md > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  publish-pubdev:
+    name: Publish to pub.dev
+
+    needs:
+      - verify-release
+      - validate
+      - github-release
+
+    if: ${{ github.event_name == 'push' && vars.PUBLISH_TO_PUBDEV == 'true' }}
+
+    runs-on: ubuntu-latest
+    environment: pub.dev
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Dart authentication
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Publish to pub.dev
+        run: dart pub publish --force
