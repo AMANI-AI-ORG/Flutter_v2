@@ -1,0 +1,103 @@
+name: Release
+
+# Push a tag like `v2.2.6` (must match `version:` in pubspec.yaml and be on main).
+# Flow: validate -> GitHub Release -> (optional) pub.dev publish.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.32.8"
+
+jobs:
+  verify-tag:
+    name: Verify tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag must match pubspec version
+        id: v
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PUB_VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}' | tr -d '"')"
+          echo "tag=$TAG_VERSION pubspec=$PUB_VERSION"
+          if [ "$TAG_VERSION" != "$PUB_VERSION" ]; then
+            echo "::error::Tag ($TAG_VERSION) does not match pubspec.yaml version ($PUB_VERSION)"
+            exit 1
+          fi
+          echo "version=$PUB_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Tagged commit must be on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit is not reachable from main"
+            exit 1
+          fi
+
+      - name: CHANGELOG must mention this version
+        run: |
+          grep -q "## ${{ steps.v.outputs.version }}" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no '## ${{ steps.v.outputs.version }}' section"
+            exit 1
+          }
+
+  validate:
+    name: Validate
+    needs: verify-tag
+    uses: ./.github/workflows/ci.yml
+
+  github-release:
+    name: GitHub Release
+    needs: [verify-tag, validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          awk -v v="${{ needs.verify-tag.outputs.version }}" '
+            $0 ~ "^## " v "$" {found=1; next}
+            found && /^## / {exit}
+            found {print}
+          ' CHANGELOG.md > release-notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  publish-pubdev:
+    name: Publish to pub.dev
+    needs: [verify-tag, validate, github-release]
+    # Opt-in: set repository variable PUBLISH_TO_PUBDEV=true once pub.dev
+    # "Automated publishing" is enabled for this package (tag pattern: v{{version}}).
+    if: ${{ vars.PUBLISH_TO_PUBDEV == 'true' }}
+    runs-on: ubuntu-latest
+    environment: pub.dev # add required reviewers on this environment for a manual approval gate
+    permissions:
+      contents: read
+      id-token: write # OIDC token for pub.dev trusted publishing (no long-lived secrets)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Publish
+        run: flutter pub publish --force
