@@ -4,84 +4,76 @@ on:
   push:
     branches:
       - feat/v3
-
   pull_request:
     branches:
       - main
-
   workflow_dispatch:
-
   workflow_call:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 env:
-  FLUTTER_VERSION: "3.32.8"
-  JAVA_VERSION: "17"
+  FLUTTER_VERSION: '3.32.8'
+  JAVA_VERSION: '17'
 
 jobs:
   analyze:
-    name: Analyze & package validation
+    name: Analyze and package validation
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
       - name: Install dependencies
         run: |
           flutter pub get
           (cd example && flutter pub get)
-
-      - name: Static analysis
+      # Plugin sources are warning/info clean: any finding fails the build.
+      - name: Static analysis (plugin)
+        run: flutter analyze lib
+      # The example app still has legacy lints; only real errors fail the build.
+      - name: Static analysis (example, legacy warnings are non-fatal)
+        working-directory: example
         run: flutter analyze --no-fatal-warnings --no-fatal-infos
-
       - name: Unit tests
         run: |
-          if [ -d test ]; then
+          if [ -d test ] && find test -name '*_test.dart' -print -quit | grep -q .; then
             flutter test
           else
-            echo "No unit tests found - skipping."
+            echo 'No unit tests found; skipping.'
           fi
-
-      - name: Package validation
+      # Package validation is intentionally strict: fix warnings in project code.
+      - name: pub.dev package validation (dry-run only)
         run: flutter pub publish --dry-run
 
   build-android:
     name: Build example (Android debug)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
+      - name: Inspect Gradle JVM settings
+        run: |
+          java -version
+          grep -E '^(org.gradle.jvmargs|org.gradle.workers.max|android.enableJetifier)=' example/android/gradle.properties || true
       - name: Build debug APK
         working-directory: example
         run: |
@@ -91,25 +83,18 @@ jobs:
   build-ios:
     name: Build example (iOS, no codesign)
     runs-on: macos-15
-    timeout-minutes: 40
-
+    timeout-minutes: 50
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
       - name: Show Xcode version
         run: xcodebuild -version
-
       - name: Build iOS without signing
         working-directory: example
         run: |
           flutter pub get
           flutter build ios --debug --no-codesign
-

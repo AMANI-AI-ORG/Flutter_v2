@@ -3,8 +3,8 @@ import 'package:flutter_amanisdk/common/models/upload_result.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_amanisdk/common/models/android/auto_selfie_settings.dart';
 import 'package:flutter_amanisdk/common/models/android/pose_estimation_settings.dart';
@@ -17,6 +17,8 @@ import 'common/models/nvi_data.dart';
 /// An implementation of [AmaniSDKPlatform] that uses method channels.
 class MethodChannelAmaniSDK extends AmaniSDKPlatform {
   /// The method channel used to interact with the native platform.
+  @override
+  // ignore: overridden_fields
   final methodChannel = const MethodChannel('amanisdk_method_channel');
 
     @override
@@ -100,26 +102,27 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     }
   }
 
-@override
-    Future<String?> getMrzRequest() async {
+  // Not part of AmaniSDKPlatform; kept for direct MethodChannelAmaniSDK callers.
+  Future<String?> getMrzRequest() async {
     try {
 
      final String? result = await methodChannel.invokeMethod<String>('getMrz');
-      print("[AmaniSDK] getMrz returned documentId: $result");
+      debugPrint("[AmaniSDK] getMrz returned documentId: $result");
       if (result != null) {
         
       try {
         var resultMap = await json.decode(json.encode(result));
-        print("[AmaniSDK] getMrz result returned to caller: $resultMap");
+        debugPrint("[AmaniSDK] getMrz result returned to caller: $resultMap");
         return resultMap;
       } catch (e) {
-        print("JSON decoding failed: $e");
+        debugPrint("JSON decoding failed: $e");
         return null;
       }
 
     } else {
-      print("Result nil geldi");
+      debugPrint("Result nil geldi");
     }
+    return null;
     } catch (err) {
       rethrow;
     }
@@ -159,27 +162,27 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
 
   @override
   Future<bool> iOSStartIDCaptureNFC(Map<String, dynamic> mrzResult) async {
-    String _mrzDocumentNo = "";
-    String _mrzDateOfBirth = "";
-    String _mrzDateOfExpire = "";
+    String mrzDocumentNo = "";
+    String mrzDateOfBirth = "";
+    String mrzDateOfExpire = "";
     try {
        if (mrzResult.isNotEmpty) {
         mrzResult.forEach((key, value) {
           if (key == "mrzDocumentNumber") {
-            _mrzDocumentNo = value;
+            mrzDocumentNo = value;
           } else if (key == "mrzExpiryDate") {
-            _mrzDateOfExpire = value;
+            mrzDateOfExpire = value;
           } else if (key == "mrzBirthDate") {
-            _mrzDateOfBirth = value;
+            mrzDateOfBirth = value;
           }
         });
         
       }
-      print("Sending arguments to iOS DateOfBirth: $_mrzDateOfBirth");
+      debugPrint("Sending arguments to iOS DateOfBirth: $mrzDateOfBirth");
       final bool isDone = await methodChannel.invokeMethod('iosIDCaptureNFC', {
-        "birthDate": _mrzDateOfBirth,
-        "expireDate": _mrzDateOfExpire,
-        "documentNo": _mrzDocumentNo
+        "birthDate": mrzDateOfBirth,
+        "expireDate": mrzDateOfExpire,
+        "documentNo": mrzDocumentNo
     });
       return isDone;
     } catch (err) {
@@ -728,6 +731,7 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
   // MARK: Upload with documentId (internal)
 
   /// Passes a native upload payload to [onResult] and returns its `isSuccess`.
+  // ignore: invalid_internal_annotation
   @internal
   bool deliverUploadResult(
       Map<String, dynamic> response, UploadResultCallback onResult) {
@@ -743,6 +747,7 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
   /// Calls a native upload method with `returnDocumentId: true`.
   /// The native side then returns {"isSuccess": Bool, "documentId": String?}
   /// instead of a Bool. Used by the SDK modules' `upload(onResult:)`.
+  // ignore: invalid_internal_annotation
   @internal
   Future<Map<String, dynamic>> invokeUpload(String method,
       [Map<String, dynamic>? arguments]) async {

@@ -1,12 +1,8 @@
-import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_amanisdk/common/models/upload_result.dart';
-import 'package:flutter_amanisdk/common/models/nvi_data.dart';
 import 'package:flutter_amanisdk/flutter_amanisdk_method_channel.dart';
-import 'package:flutter/material.dart';
 
 enum IdSide { front, back }
 
@@ -52,7 +48,7 @@ class IdCapture {
           mrzData.addAll(eventData);
           return mrzData;
         } catch (e) {
-          print("[AmaniSDK] Failed to parse MRZ data: $e");
+          debugPrint("[AmaniSDK] Failed to parse MRZ data: $e");
           return {};
         }
     }
@@ -72,7 +68,7 @@ class IdCapture {
   /// ```dart
   /// final isSuccess = await idCapture.upload(
   ///   onResult: (isSuccess, documentId) {
-  ///     print('Upload finished: $isSuccess, documentId: $documentId');
+  ///     debugPrint('Upload finished: $isSuccess, documentId: $documentId');
   ///   },
   /// );
   /// ```

@@ -1,7 +1,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_amanisdk/common/models/api_version.dart';
@@ -17,8 +16,6 @@ import 'package:flutter_amanisdk/modules/pose_estimation.dart';
 import 'package:flutter_amanisdk/modules/selfie.dart';
 import 'package:flutter_amanisdk/modules/signature.dart';
 import 'package:flutter_amanisdk/modules/speech_verifier.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'amaniAndroidConfigure.dart';
 import 'amanisdk_platform_interface.dart';
 import 'sdkresult.dart';

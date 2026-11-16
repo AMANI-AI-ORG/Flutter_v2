@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_amanisdk/common/models/android/auto_selfie_settings.dart';
 import 'package:flutter_amanisdk/common/models/android/pose_estimation_settings.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_amanisdk/common/models/ios/auto_selfie_settings.dart';
 import 'package:flutter_amanisdk/common/models/ios/pose_estimation_settings.dart';
 import 'package:flutter_amanisdk/common/models/nvi_data.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-import 'package:flutter_amanisdk/common/models/speech_verifier_settings.dart';
 import 'flutter_amanisdk_method_channel.dart';
 
 abstract class AmaniSDKPlatform extends PlatformInterface {

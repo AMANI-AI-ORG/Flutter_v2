@@ -1,3 +1,5 @@
+// ignore_for_file: file_names
+// File name is part of the public import path (see README); do not rename.
 
 
 enum AmaniAndroidDynamicFeature {
