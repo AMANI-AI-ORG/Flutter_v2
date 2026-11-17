@@ -6,21 +6,11 @@ on:
       platform:
         description: Platform to build
         type: choice
-        options: [both, android, ios]
-        required: true
+        options:
+          - both
+          - android
+          - ios
         default: android
-      ios_build_mode:
-        description: iOS build mode
-        type: choice
-        options: [release, profile]
-        required: true
-        default: release
-      ios_export_method:
-        description: iOS export method (signed installable IPA)
-        type: choice
-        options: [debugging, release-testing]
-        required: true
-        default: debugging
 
 permissions:
   contents: read
@@ -30,42 +20,47 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: '3.32.8'
-  JAVA_VERSION: '17'
+  FLUTTER_VERSION: "3.32.8"
+  JAVA_VERSION: "17"
 
 jobs:
   android-apk:
-    name: Android debug APK
+    name: Android Debug APK
     if: ${{ inputs.platform == 'both' || inputs.platform == 'android' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: subosito/flutter-action@v2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Inspect Gradle JVM settings
-        run: |
-          java -version
-          grep -E '^(org.gradle.jvmargs|org.gradle.workers.max|android.enableJetifier)=' example/android/gradle.properties || true
+
       - name: Build debug APK
         working-directory: example
         run: |
           flutter pub get
           flutter build apk --debug
+
       - name: Generate artifact name
         id: meta
         shell: bash
         run: |
-          VERSION="$(awk '/^version:/ {print $2; exit}' pubspec.yaml | tr -d '"')"
+          VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}' | tr -d '"')"
           echo "name=flutter_amanisdk-${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-      - name: Upload debug APK
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.name }}-android-debug-apk
@@ -74,107 +69,299 @@ jobs:
           retention-days: 14
 
   ios-ipa:
-    name: iOS signed IPA
+    name: iOS IPA (Manual Signing)
     if: ${{ inputs.platform == 'both' || inputs.platform == 'ios' }}
     runs-on: macos-15
     timeout-minutes: 75
+
     env:
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
-      TEAM_ID: '24V9HW64Y3'
+      BUNDLE_ID: "ai.amani.flutterv2demo8"
+      PROFILE_NAME: "iOS Team Provisioning Profile: ai.amani.flutterv2demo8"
+      PROFILE_UUID: "9b61e5bb-6028-432d-8dd5-f85dc27bb9b7"
+
+      IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+      IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+      IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+
     steps:
-      - name: Check signing secrets
-        shell: bash
-        run: |
-          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
-            if [ -z "${!v}" ]; then
-              echo "::error::Missing repository secret $v"
-              exit 1
-            fi
-          done
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
       - name: Show Xcode version
         run: xcodebuild -version
-      - name: Write App Store Connect API key
+
+      - name: Check signing secrets
         shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/keys"
-          KEY_PATH="$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
-          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$KEY_PATH"
-          chmod 600 "$KEY_PATH"
-          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-      - name: Prepare Flutter and CocoaPods
+          for v in IOS_TEAM_ID IOS_CERT_P12_BASE64 IOS_CERT_PASSWORD IOS_PROFILE_BASE64; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing repository secret: $v"
+              exit 1
+            fi
+          done
+
+          if [ "$IOS_TEAM_ID" != "65M6S5794Q" ]; then
+            echo "::error::Unexpected Apple Team ID"
+            exit 1
+          fi
+
+          echo "Signing secrets are configured."
+
+      - name: Decode signing files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CERT_PATH="$RUNNER_TEMP/flutter_example.p12"
+          PROFILE_PATH="$RUNNER_TEMP/flutter_example.mobileprovision"
+
+          printf '%s' "$IOS_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          printf '%s' "$IOS_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          chmod 600 "$CERT_PATH"
+          chmod 600 "$PROFILE_PATH"
+
+          echo "CERT_PATH=$CERT_PATH" >> "$GITHUB_ENV"
+          echo "PROFILE_PATH=$PROFILE_PATH" >> "$GITHUB_ENV"
+
+      - name: Validate provisioning profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+
+          python3 - <<'PY'
+          import os
+          import plistlib
+          from datetime import datetime, timezone
+
+          with open(os.environ["RUNNER_TEMP"] + "/profile.plist", "rb") as f:
+              profile = plistlib.load(f)
+
+          name = profile.get("Name")
+          uuid = profile.get("UUID")
+          teams = profile.get("TeamIdentifier", [])
+          entitlements = profile.get("Entitlements", {})
+          app_id = entitlements.get("application-identifier", "")
+          expiration = profile.get("ExpirationDate")
+
+          expected_name = os.environ["PROFILE_NAME"]
+          expected_uuid = os.environ["PROFILE_UUID"]
+          expected_team = os.environ["IOS_TEAM_ID"]
+          expected_app = expected_team + "." + os.environ["BUNDLE_ID"]
+
+          print("Profile:", name)
+          print("UUID:", uuid)
+          print("Team:", teams)
+          print("Expiration:", expiration)
+
+          if name != expected_name:
+              raise SystemExit("Provisioning profile name mismatch")
+
+          if uuid.lower() != expected_uuid.lower():
+              raise SystemExit("Provisioning profile UUID mismatch")
+
+          if expected_team not in teams:
+              raise SystemExit("Provisioning profile Team ID mismatch")
+
+          if app_id != expected_app:
+              raise SystemExit("Provisioning profile Bundle ID mismatch")
+
+          if entitlements.get("get-task-allow") is not True:
+              raise SystemExit("Expected a Development provisioning profile")
+
+          if not profile.get("ProvisionedDevices"):
+              raise SystemExit("No registered devices in provisioning profile")
+
+          if expiration is None:
+              raise SystemExit("Provisioning profile expiration missing")
+
+          if expiration.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+              raise SystemExit("Provisioning profile has expired")
+
+          print("Development provisioning profile validated.")
+          PY
+
+      - name: Install signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          security create-keychain \
+            -p "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          security set-keychain-settings \
+            -lut 21600 \
+            "$KEYCHAIN_PATH"
+
+          security unlock-keychain \
+            -p "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" \
+            -P "$IOS_CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          security list-keychains \
+            -d user \
+            -s "$KEYCHAIN_PATH"
+
+          security default-keychain \
+            -d user \
+            -s "$KEYCHAIN_PATH"
+
+          security find-identity \
+            -v \
+            -p codesigning \
+            "$KEYCHAIN_PATH"
+
+          if ! security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -q 'Apple Development:'; then
+            echo "::error::Apple Development signing identity not found"
+            exit 1
+          fi
+
+      - name: Install provisioning profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          XCODE_PROFILE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+
+          mkdir -p "$PROFILE_DIR"
+          mkdir -p "$XCODE_PROFILE_DIR"
+
+          cp "$PROFILE_PATH" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+          cp "$PROFILE_PATH" "$XCODE_PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+
+          echo "Provisioning profile installed."
+
+      - name: Prepare Flutter project
         working-directory: example
         shell: bash
-        env:
-          BUILD_MODE: ${{ inputs.ios_build_mode }}
         run: |
+          set -euo pipefail
+
           flutter pub get
-          flutter build ios --"$BUILD_MODE" --no-codesign
-      - name: Archive
+
+          flutter build ios \
+            --release \
+            --no-codesign
+
+      - name: Archive iOS application
         working-directory: example/ios
         shell: bash
-        env:
-          IOS_CONFIGURATION: ${{ inputs.ios_build_mode == 'profile' && 'Profile' || 'Release' }}
         run: |
+          set -euo pipefail
+
           xcodebuild archive \
             -workspace Runner.xcworkspace \
             -scheme Runner \
-            -configuration "$IOS_CONFIGURATION" \
+            -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
-            DEVELOPMENT_TEAM="$TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-      - name: Export IPA
-        working-directory: example/ios
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Development" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CODE_SIGNING_ALLOWED=YES \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+
+      - name: Create ExportOptions.plist
         shell: bash
-        env:
-          EXPORT_METHOD: ${{ inputs.ios_export_method }}
         run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>${EXPORT_METHOD}</string>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>stripSwiftSymbols</key><true/>
-          </dict>
-          </plist>
-          PLIST
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import os
+          import plistlib
+
+          options = {
+              "method": "debugging",
+              "teamID": os.environ["IOS_TEAM_ID"],
+              "signingStyle": "manual",
+              "signingCertificate": "Apple Development",
+              "provisioningProfiles": {
+                  os.environ["BUNDLE_ID"]: os.environ["PROFILE_UUID"]
+              },
+              "stripSwiftSymbols": True
+          }
+
+          output = os.path.join(
+              os.environ["RUNNER_TEMP"],
+              "ExportOptions.plist"
+          )
+
+          with open(output, "wb") as f:
+              plistlib.dump(options, f)
+
+          print("ExportOptions.plist created.")
+          PY
+
+      - name: Export signed IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/ipa"
+
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
             -exportPath "$RUNNER_TEMP/ipa" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-          ls -la "$RUNNER_TEMP/ipa"
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+          ls -lah "$RUNNER_TEMP/ipa"
+
       - name: Generate artifact name
         id: meta
         shell: bash
         run: |
-          VERSION="$(awk '/^version:/ {print $2; exit}' pubspec.yaml | tr -d '"')"
+          VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}' | tr -d '"')"
           echo "name=flutter_amanisdk-${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-      - name: Upload IPA
+
+      - name: Upload signed IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.meta.outputs.name }}-ios-ipa
+          name: ${{ steps.meta.outputs.name }}-ios-development-ipa
           path: ${{ runner.temp }}/ipa/*.ipa
           if-no-files-found: error
           retention-days: 14
-      - name: Cleanup API key
+
+      - name: Cleanup signing resources
         if: always()
-        run: rm -rf "$RUNNER_TEMP/keys"
+        shell: bash
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+          rm -f "$RUNNER_TEMP/flutter_example.p12"
+          rm -f "$RUNNER_TEMP/flutter_example.mobileprovision"
+          rm -f "$RUNNER_TEMP/profile.plist"
+
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
