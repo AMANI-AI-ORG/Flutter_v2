@@ -108,7 +108,7 @@ jobs:
             fi
           done
 
-          if [ "$IOS_TEAM_ID" != "65M6S5794Q" ]; then
+          if [ "$IOS_TEAM_ID" != "24V9HW64Y3" ]; then
             echo "::error::Unexpected Apple Team ID"
             exit 1
           fi
