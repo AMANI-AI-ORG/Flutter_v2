@@ -6,6 +6,7 @@ on:
       platform:
         description: Platform to build
         type: choice
+        required: true
         options:
           - both
           - android
@@ -47,7 +48,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Build debug APK
+      - name: Build Android APK
         working-directory: example
         run: |
           flutter pub get
@@ -69,7 +70,7 @@ jobs:
           retention-days: 14
 
   ios-ipa:
-    name: iOS IPA (Manual Signing)
+    name: iOS IPA (Development Signing)
     if: ${{ inputs.platform == 'both' || inputs.platform == 'ios' }}
     runs-on: macos-15
     timeout-minutes: 75
@@ -101,6 +102,8 @@ jobs:
       - name: Check signing secrets
         shell: bash
         run: |
+          set -euo pipefail
+
           for v in IOS_TEAM_ID IOS_CERT_P12_BASE64 IOS_CERT_PASSWORD IOS_PROFILE_BASE64; do
             if [ -z "${!v}" ]; then
               echo "::error::Missing repository secret: $v"
@@ -109,11 +112,11 @@ jobs:
           done
 
           if [ "$IOS_TEAM_ID" != "24V9HW64Y3" ]; then
-            echo "::error::Unexpected Apple Team ID"
+            echo "::error::Apple Team ID mismatch"
             exit 1
           fi
 
-          echo "Signing secrets are configured."
+          echo "Signing secrets verified."
 
       - name: Decode signing files
         shell: bash
@@ -126,69 +129,76 @@ jobs:
           printf '%s' "$IOS_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
           printf '%s' "$IOS_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
 
-          chmod 600 "$CERT_PATH"
-          chmod 600 "$PROFILE_PATH"
+          chmod 600 "$CERT_PATH" "$PROFILE_PATH"
 
           echo "CERT_PATH=$CERT_PATH" >> "$GITHUB_ENV"
           echo "PROFILE_PATH=$PROFILE_PATH" >> "$GITHUB_ENV"
+
+          echo "Signing files decoded."
 
       - name: Validate provisioning profile
         shell: bash
         run: |
           set -euo pipefail
 
-          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          security cms -D \
+            -i "$PROFILE_PATH" \
+            > "$RUNNER_TEMP/profile.plist"
 
           python3 - <<'PY'
           import os
           import plistlib
           from datetime import datetime, timezone
 
-          with open(os.environ["RUNNER_TEMP"] + "/profile.plist", "rb") as f:
+          path = os.path.join(
+              os.environ["RUNNER_TEMP"],
+              "profile.plist"
+          )
+
+          with open(path, "rb") as f:
               profile = plistlib.load(f)
 
           name = profile.get("Name")
-          uuid = profile.get("UUID")
+          uuid = profile.get("UUID", "")
           teams = profile.get("TeamIdentifier", [])
           entitlements = profile.get("Entitlements", {})
           app_id = entitlements.get("application-identifier", "")
           expiration = profile.get("ExpirationDate")
 
-          expected_name = os.environ["PROFILE_NAME"]
-          expected_uuid = os.environ["PROFILE_UUID"]
           expected_team = os.environ["IOS_TEAM_ID"]
-          expected_app = expected_team + "." + os.environ["BUNDLE_ID"]
+          expected_bundle = os.environ["BUNDLE_ID"]
+          expected_uuid = os.environ["PROFILE_UUID"]
 
           print("Profile:", name)
           print("UUID:", uuid)
           print("Team:", teams)
           print("Expiration:", expiration)
 
-          if name != expected_name:
-              raise SystemExit("Provisioning profile name mismatch")
+          if name != os.environ["PROFILE_NAME"]:
+              raise SystemExit("Profile name mismatch")
 
           if uuid.lower() != expected_uuid.lower():
-              raise SystemExit("Provisioning profile UUID mismatch")
+              raise SystemExit("Profile UUID mismatch")
 
           if expected_team not in teams:
-              raise SystemExit("Provisioning profile Team ID mismatch")
+              raise SystemExit("Profile Team ID mismatch")
 
-          if app_id != expected_app:
-              raise SystemExit("Provisioning profile Bundle ID mismatch")
+          if app_id != f"{expected_team}.{expected_bundle}":
+              raise SystemExit("Bundle identifier mismatch")
 
           if entitlements.get("get-task-allow") is not True:
-              raise SystemExit("Expected a Development provisioning profile")
+              raise SystemExit("Expected Development profile")
 
           if not profile.get("ProvisionedDevices"):
-              raise SystemExit("No registered devices in provisioning profile")
+              raise SystemExit("No registered test devices")
 
           if expiration is None:
-              raise SystemExit("Provisioning profile expiration missing")
+              raise SystemExit("Missing expiration date")
 
           if expiration.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
-              raise SystemExit("Provisioning profile has expired")
+              raise SystemExit("Provisioning profile expired")
 
-          print("Development provisioning profile validated.")
+          print("Provisioning profile validated.")
           PY
 
       - name: Install signing certificate
@@ -239,9 +249,11 @@ jobs:
             "$KEYCHAIN_PATH"
 
           if ! security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -q 'Apple Development:'; then
-            echo "::error::Apple Development signing identity not found"
+            echo "::error::Apple Development certificate not found"
             exit 1
           fi
+
+          echo "Signing certificate installed."
 
       - name: Install provisioning profile
         shell: bash
@@ -249,13 +261,16 @@ jobs:
           set -euo pipefail
 
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          XCODE_PROFILE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          XCODE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 
           mkdir -p "$PROFILE_DIR"
-          mkdir -p "$XCODE_PROFILE_DIR"
+          mkdir -p "$XCODE_DIR"
 
-          cp "$PROFILE_PATH" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
-          cp "$PROFILE_PATH" "$XCODE_PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+          cp "$PROFILE_PATH" \
+            "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+
+          cp "$PROFILE_PATH" \
+            "$XCODE_DIR/$PROFILE_UUID.mobileprovision"
 
           echo "Provisioning profile installed."
 
@@ -266,10 +281,7 @@ jobs:
           set -euo pipefail
 
           flutter pub get
-
-          flutter build ios \
-            --release \
-            --no-codesign
+          flutter build ios --release --no-codesign
 
       - name: Archive iOS application
         working-directory: example/ios
@@ -283,12 +295,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
-            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Development" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
-            CODE_SIGNING_ALLOWED=YES \
-            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+            CODE_SIGNING_ALLOWED=YES
 
       - name: Create ExportOptions.plist
         shell: bash
@@ -302,11 +309,7 @@ jobs:
           options = {
               "method": "debugging",
               "teamID": os.environ["IOS_TEAM_ID"],
-              "signingStyle": "manual",
-              "signingCertificate": "Apple Development",
-              "provisioningProfiles": {
-                  os.environ["BUNDLE_ID"]: os.environ["PROFILE_UUID"]
-              },
+              "signingStyle": "automatic",
               "stripSwiftSymbols": True
           }
 
@@ -333,6 +336,7 @@ jobs:
             -exportPath "$RUNNER_TEMP/ipa" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
 
+          echo "Exported files:"
           ls -lah "$RUNNER_TEMP/ipa"
 
       - name: Generate artifact name
@@ -340,6 +344,7 @@ jobs:
         shell: bash
         run: |
           VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}' | tr -d '"')"
+
           echo "name=flutter_amanisdk-${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Upload signed IPA
@@ -364,4 +369,3 @@ jobs:
 
           rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-
