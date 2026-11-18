@@ -274,14 +274,33 @@ jobs:
 
           echo "Provisioning profile installed."
 
-      - name: Prepare Flutter project
+      
+       - name: Prepare Flutter project
         working-directory: example
         shell: bash
         run: |
           set -euo pipefail
 
           flutter pub get
-          flutter build ios --release --no-codesign
+
+          MAX_ATTEMPTS=3
+
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            echo "iOS preparation attempt $attempt/$MAX_ATTEMPTS"
+
+            if flutter build ios --release --no-codesign; then
+              echo "iOS preparation completed successfully."
+              exit 0
+            fi
+
+            if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
+              echo "::error::iOS preparation failed after $MAX_ATTEMPTS attempts."
+              exit 1
+            fi
+
+            echo "Retrying after temporary failure..."
+            sleep $((attempt * 20))
+          done
 
       - name: Archive iOS application
         working-directory: example/ios
