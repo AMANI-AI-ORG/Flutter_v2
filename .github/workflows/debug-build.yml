@@ -50,7 +50,10 @@ jobs:
 
       - name: Build Android APK
         working-directory: example
+        shell: bash
         run: |
+          set -euo pipefail
+
           flutter pub get
           flutter build apk --debug
 
@@ -59,6 +62,7 @@ jobs:
         shell: bash
         run: |
           VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}' | tr -d '"')"
+
           echo "name=flutter_amanisdk-${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Android APK
@@ -73,7 +77,7 @@ jobs:
     name: iOS IPA (Development Signing)
     if: ${{ inputs.platform == 'both' || inputs.platform == 'ios' }}
     runs-on: macos-15
-    timeout-minutes: 75
+    timeout-minutes: 90
 
     env:
       BUNDLE_ID: "ai.amani.flutterv2demo8"
@@ -195,7 +199,9 @@ jobs:
           if expiration is None:
               raise SystemExit("Missing expiration date")
 
-          if expiration.replace(tzinfo=timezone.utc) <= datetime.now(timezone.utc):
+          expiration = expiration.replace(tzinfo=timezone.utc)
+
+          if expiration <= datetime.now(timezone.utc):
               raise SystemExit("Provisioning profile expired")
 
           print("Provisioning profile validated.")
@@ -274,8 +280,7 @@ jobs:
 
           echo "Provisioning profile installed."
 
-      
-       - name: Prepare Flutter project
+      - name: Prepare Flutter project
         working-directory: example
         shell: bash
         run: |
@@ -286,7 +291,9 @@ jobs:
           MAX_ATTEMPTS=3
 
           for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            echo "======================================"
             echo "iOS preparation attempt $attempt/$MAX_ATTEMPTS"
+            echo "======================================"
 
             if flutter build ios --release --no-codesign; then
               echo "iOS preparation completed successfully."
@@ -298,7 +305,7 @@ jobs:
               exit 1
             fi
 
-            echo "Retrying after temporary failure..."
+            echo "Build preparation failed. Retrying..."
             sleep $((attempt * 20))
           done
 
@@ -385,6 +392,8 @@ jobs:
           rm -f "$RUNNER_TEMP/flutter_example.p12"
           rm -f "$RUNNER_TEMP/flutter_example.mobileprovision"
           rm -f "$RUNNER_TEMP/profile.plist"
+          rm -f "$RUNNER_TEMP/ExportOptions.plist"
 
           rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
