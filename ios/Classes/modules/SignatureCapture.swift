@@ -25,7 +25,7 @@ class SignatureCapture: NSObject {
 
     DispatchQueue.main.async { [weak self] in
       guard let self else { return }
-      guard let vc = UIApplication.shared.windows.last?.rootViewController else {
+      guard let vc = BridgeSecurity.topViewController() else {
         result(FlutterError(code: "30050", message: "Could not find a view controller to present the signature screen.", details: nil))
         return
       }
@@ -42,7 +42,7 @@ class SignatureCapture: NSObject {
         self?.setConfirmEnabled(true)
       }
       self.module.setOnConfirmPressedCallback { [weak self] _, signatureNumber in
-        print("[AmaniBridge][Signature] signature \(signatureNumber) of \(settings.count) confirmed")
+        AmaniLog.d("[AmaniBridge][Signature] signature \(signatureNumber) of \(settings.count) confirmed")
         self?.setConfirmEnabled(false)
         self?.updateCounter(completed: signatureNumber, total: settings.count)
       }
@@ -63,7 +63,7 @@ class SignatureCapture: NSObject {
         self.container = container
         self.updateCounter(completed: 0, total: settings.count)
         self.setConfirmEnabled(false)
-        print("[AmaniBridge][Signature] started, expecting \(settings.count) signature(s)")
+        AmaniLog.d("[AmaniBridge][Signature] started, expecting \(settings.count) signature(s)")
       } catch let err {
         self.pendingResult = nil
         result(FlutterError(code: "30007", message: err.localizedDescription, details: nil))
@@ -103,7 +103,7 @@ class SignatureCapture: NSObject {
   }
 
   @objc private func onClose() {
-    print("[AmaniBridge][Signature] cancelled by the user")
+    AmaniLog.d("[AmaniBridge][Signature] cancelled by the user")
     let result = pendingResult
     pendingResult = nil
     dismiss()

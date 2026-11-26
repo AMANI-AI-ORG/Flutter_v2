@@ -15,7 +15,10 @@ class PoseEstimation {
   private var sdkView: SDKView!
 
   public func start(settings: PoseEstimationSettings, result: @escaping FlutterResult) {
-    let vc = UIApplication.shared.windows.last?.rootViewController
+    guard let vc = BridgeSecurity.topViewController() else {
+      result(FlutterError(code: "30007", message: "No active view controller to present the capture UI", details: nil))
+      return
+    }
     module.setScreenConfig(screenConfig: [
       .appBackgroundColor: settings.appBackgroundColor,
       .appFontColor: settings.appFontColor,
@@ -57,13 +60,18 @@ class PoseEstimation {
     let mainGuideLeft = settings.mainGuideLeft,
     let mainGuideRight = settings.mainGuideRight,
     let mainGuideStraight = settings.mainGuideStraight {
-      module.setMainGuideImages(guideImages: [
-        .mainGuideUp: UIImage(named: mainGuideUp)!,
-        .mainGuideDown: UIImage(named: mainGuideDown)!,
-        .mainGuideLeft: UIImage(named: mainGuideLeft)!,
-        .mainGuideRight: UIImage(named: mainGuideRight)!,
-        .mainGuideStraight: UIImage(named: mainGuideStraight)!,
-      ])
+      // Asset names come from Dart; a missing asset must not crash the host app.
+      if let up = UIImage(named: mainGuideUp), let down = UIImage(named: mainGuideDown),
+         let left = UIImage(named: mainGuideLeft), let right = UIImage(named: mainGuideRight),
+         let straight = UIImage(named: mainGuideStraight) {
+        module.setMainGuideImages(guideImages: [
+          .mainGuideUp: up,
+          .mainGuideDown: down,
+          .mainGuideLeft: left,
+          .mainGuideRight: right,
+          .mainGuideStraight: straight,
+        ])
+      }
     }
     
     if
@@ -72,29 +80,39 @@ class PoseEstimation {
     let secondaryGuideLeft = settings.secondaryGuideLeft,
     let secondaryGuideRight = settings.secondaryGuideRight
     {
-      module.setSecondaryGuideImages(guideImages: [
-        .secondaryGuideUp: UIImage(named: secondaryGuideUp)!,
-        .secondaryGuideDown: UIImage(named: secondaryGuideDown)!,
-        .secondaryGuideLeft: UIImage(named: secondaryGuideLeft)!,
-        .secondaryGuideRight: UIImage(named: secondaryGuideRight)!,
-      ])
+      if let up = UIImage(named: secondaryGuideUp), let down = UIImage(named: secondaryGuideDown),
+         let left = UIImage(named: secondaryGuideLeft), let right = UIImage(named: secondaryGuideRight) {
+        module.setSecondaryGuideImages(guideImages: [
+          .secondaryGuideUp: up,
+          .secondaryGuideDown: down,
+          .secondaryGuideLeft: left,
+          .secondaryGuideRight: right,
+        ])
+      }
     }
 
     module.setManualCropTimeout(timeout: settings.manualCropTimeout)
 
     do {
       let moduleView = try module.start { image in
-        let data = image.pngData()
-        result(FlutterStandardTypedData(bytes: data!))
+        guard let payload = BridgeSecurity.pngResponse(image) else {
+          result(FlutterError(code: "30007", message: "Captured image could not be encoded", details: nil))
+          return
+        }
+        result(payload)
         
         DispatchQueue.main.async {
           self.sdkView.removeFromSuperview()
         }
       }
       
-      sdkView = SDKView(sdkView: moduleView!)
-      sdkView.start(on: vc!)
-      sdkView.setupBackButton(on: moduleView!)
+      guard let captureView = moduleView else {
+        result(FlutterError(code: "30032", message: "The SDK did not return a capture view", details: nil))
+        return
+      }
+      sdkView = SDKView(sdkView: captureView)
+      sdkView.start(on: vc)
+      sdkView.setupBackButton(on: captureView)
     } catch let err {
       result(FlutterError(code: "30007", message: err.localizedDescription, details: nil))
     }

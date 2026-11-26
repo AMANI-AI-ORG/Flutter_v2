@@ -1,5 +1,7 @@
 package ai.amani.flutter_amanisdk.modules
 
+import ai.amani.flutter_amanisdk.BridgeLog
+
 import ai.amani.flutter_amanisdk.R
 import ai.amani.sdk.Amani
 import ai.amani.sdk.model.amani_events.error.AmaniError
@@ -12,7 +14,6 @@ import android.widget.Button
 import android.widget.FrameLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import io.flutter.Log
 import io.flutter.plugin.common.MethodChannel.Result
 import java.io.ByteArrayOutputStream
 import java.lang.Exception
@@ -58,7 +59,7 @@ class IdCapture : Module {
                 val stream = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
                 activity.runOnUiThread {
-                    closeButton!!.visibility = View.GONE
+                    closeButton?.visibility = View.GONE
                 }
 
                 result.success(stream.toByteArray())
@@ -105,8 +106,8 @@ class IdCapture : Module {
         } else {
             activity.runOnUiThread {
                 frag?.let {
-                    closeButton!!.visibility = View.GONE
-                    it.parentFragmentManager.beginTransaction().remove(frag!!).commit()
+                    closeButton?.visibility = View.GONE
+                    it.parentFragmentManager.beginTransaction().remove(it).commit()
                     frag = null
                     // This blocks the flutters back press action.
                     result.success(false)
@@ -144,7 +145,7 @@ class IdCapture : Module {
 
     override fun setType(type: String?, result: Result) {
         this.docType = type
-        Log.d("AmaniSDK", "setTypeCalled!")
+        BridgeLog.d("AmaniSDK", "setTypeCalled!")
         result.success(null)
     }
 

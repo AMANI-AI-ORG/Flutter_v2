@@ -47,11 +47,13 @@ class PoseEstimation: Module {
 
         val observer: PoseEstimationObserver = object : PoseEstimationObserver {
             override fun onError(error: Error) {
-                (activity as FragmentActivity).supportFragmentManager.
-                beginTransaction().remove(frag!!).commit()
+                frag?.let {
+                    (activity as FragmentActivity).supportFragmentManager.
+                    beginTransaction().remove(it).commit()
+                }
 
                 activity.runOnUiThread {
-                    closeButton!!.visibility = View.GONE
+                    closeButton?.visibility = View.GONE
                 }
 
                 result.error("30006", error.message, null)
@@ -68,7 +70,7 @@ class PoseEstimation: Module {
                     result.success(stream.toByteArray())
 
                     activity.runOnUiThread {
-                        closeButton!!.visibility = View.GONE
+                        closeButton?.visibility = View.GONE
                     }
 
                     (activity as FragmentActivity).removeFragment(frag)
@@ -149,8 +151,8 @@ class PoseEstimation: Module {
         } else {
             activity.runOnUiThread {
                 frag?.let {
-                    closeButton!!.visibility = View.GONE
-                    it.parentFragmentManager.beginTransaction().remove(frag!!).commit()
+                    closeButton?.visibility = View.GONE
+                    it.parentFragmentManager.beginTransaction().remove(it).commit()
                     frag = null
                     // This blocks the flutters back press action.
                     result.success(false)

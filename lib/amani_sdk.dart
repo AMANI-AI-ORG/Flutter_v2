@@ -1,10 +1,10 @@
 
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_amanisdk/common/models/api_version.dart';
 import 'package:flutter_amanisdk/common/models/customer_detail.dart';
+import 'package:flutter_amanisdk/common/security/input_validation.dart';
 import 'package:flutter_amanisdk/flutter_amanisdk_method_channel.dart';
 import 'package:flutter_amanisdk/modules/auto_selfie.dart';
 import 'package:flutter_amanisdk/modules/bio_login.dart';
@@ -115,16 +115,14 @@ class AmaniSDK {
     /// other than [AmaniUploadSource.kyc].
     AmaniUploadSource uploadSource = AmaniUploadSource.kyc,
   }) async {
-    if (server.isEmpty) {
-      throw Exception("server parameter cannot be empty string");
-    }
+    final serverOrigin = AmaniInputValidation.normalizeServer(server);
+    AmaniInputValidation.checkSharedSecret(sharedSecret);
 
     String apiV = apiVersion == AmaniApiVersion.v1 ? "v1" : "v2";
 
-    Uri serverURI = Uri.parse(server).normalizePath();
     try {
       var login = await _methodChannel.initAmani(
-        server: serverURI.origin,
+        server: serverOrigin,
         customerToken: customerToken,
         customerIdCardNumber: customerIdCardNumber,
         lang: lang,
@@ -145,8 +143,10 @@ class AmaniSDK {
     String? sharedSecret,
     AmaniUploadSource uploadSource = AmaniUploadSource.kyc,
   }) async {
+    final serverOrigin = AmaniInputValidation.normalizeServer(server);
+    AmaniInputValidation.checkSharedSecret(sharedSecret);
     await AmaniSDKPlatform.instance.setConfigure(
-      server: server,
+      server: serverOrigin,
       enabledFeatures: enabledFeatures.map((e) => e.name).toList(),
       sharedSecret: sharedSecret,
       uploadSource: uploadSource.getUploadSourceString,
@@ -222,15 +222,12 @@ class AmaniSDK {
     }
 
     
-    final tokenParts = token.split('.');
-    if (tokenParts.length < 2) {
+    // Malformed base64/JSON must surface as a clean error, not a raw FormatException.
+    final payloadJson = AmaniInputValidation.decodeJwtPayload(token);
+    if (payloadJson == null) {
       throw Exception("Invalid JWT token format");
     }
 
-    final payloadBytes = base64Decode(base64.normalize(tokenParts[1]));
-    final payloadJson = jsonDecode(utf8.decode(payloadBytes));
-
-    
     if (payloadJson['profile_id'] == null && payloadJson['customer_id'] == null) {
       throw Exception("You can't use admin token with this SDK.");
     }
@@ -316,21 +313,19 @@ class AmaniSDK {
     /// Upload source the iOS session is opened with, see [initAmani].
     AmaniUploadSource uploadSource = AmaniUploadSource.kyc,
   }) async {
-    if (server.isEmpty) {
-      throw Exception("server parameter cannot be empty string");
-    }
-
     if (!kDebugMode) {
       throw Exception(
           "You can't run this method on production version of your app");
     }
 
+    final serverOrigin = AmaniInputValidation.normalizeServer(server);
+    AmaniInputValidation.checkSharedSecret(sharedSecret);
+
     String apiV = apiVersion == AmaniApiVersion.v1 ? "v1" : "v2";
 
-    Uri serverURI = Uri.parse(server).normalizePath();
     try {
       var login = await _methodChannel.initAmaniWithEmail(
-          server: serverURI.origin,
+          server: serverOrigin,
           email: email,
           password: password,
           customerIdCardNumber: customerIdCardNumber,

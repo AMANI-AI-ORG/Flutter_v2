@@ -12,7 +12,12 @@ interface JSONConvertable {
     fun toJSON(): String = Gson().toJson(this)
 }
 
-inline fun <reified T: JSONConvertable> String.toObject(): T = Gson().fromJson(this, T::class.java)
+/**
+ * Parses [this] into [T]. Returns null for malformed or "null" JSON, so a bad settings
+ * string from Dart is reported as an argument error instead of crashing the bridge.
+ */
+inline fun <reified T: JSONConvertable> String.toObject(): T? =
+    try { Gson().fromJson(this, T::class.java) } catch (e: Exception) { null }
 
 
 fun Activity.logToast(message: String) {

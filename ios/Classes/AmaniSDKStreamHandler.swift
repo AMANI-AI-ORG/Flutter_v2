@@ -14,7 +14,7 @@ class DelegateEventHandler: NSObject, FlutterStreamHandler {
   
    private func emit(_ event: [String: Any]) {
     guard let sink = eventSink else {
-      print("⚠️ eventSink is NIL, dropping event: \(event["type"] ?? "unknown")")
+      AmaniLog.d("⚠️ eventSink is NIL, dropping event: \(event["type"] ?? "unknown")")
       return
     }
     DispatchQueue.main.async {
@@ -24,7 +24,6 @@ class DelegateEventHandler: NSObject, FlutterStreamHandler {
 
   func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     
-    print(events);
     self.eventSink = events
     return nil
   }
@@ -39,7 +38,7 @@ extension DelegateEventHandler: AmaniDelegate {
   public func onProfileStatus(customerId: String, profile: AmaniSDK.wsProfileStatusModel) {
     do {
       let jsonData = try JSONEncoder().encode(profile)
-      print("[AmaniBridge] onProfileStatus received (\(jsonData.count) bytes)")
+      AmaniLog.d("[AmaniBridge] onProfileStatus received (\(jsonData.count) bytes)")
       emit(["type": "profileStatus", "data": String(data: jsonData, encoding: .utf8)])
     } catch {
       emit(["type": "error", "data": ["type": "JSONConversation", "errors": ["error_code": "30011", "error_message": "\(error.localizedDescription)"]] as [String: Any]])
@@ -49,7 +48,7 @@ extension DelegateEventHandler: AmaniDelegate {
   public func onStepModel(customerId: String, documentId: String, rules: [AmaniSDK.KYCRuleModel]?) {
     do {
       let jsonData = try JSONEncoder().encode(["rules": rules])
-      print("[AmaniBridge] onStepModel received (\(jsonData.count) bytes)")
+      AmaniLog.d("[AmaniBridge] onStepModel received (\(jsonData.count) bytes)")
       emit(["type": "stepModel", "data": String(data: jsonData, encoding: .utf8)])
     } catch {
       emit(["type": "error", "data": ["type": "JSONConversation", "errors": ["error_code": "30011", "error_message": "\(error.localizedDescription)"]] as [String: Any]])
@@ -70,7 +69,7 @@ extension DelegateEventHandler: AmaniDelegate {
 }
 extension DelegateEventHandler: mrzInfoDelegate {
    func mrzInfo(_ mrz: AmaniSDK.MrzModel?, documentId: String?) {
-    print("[AmaniBridge][IDCapture] mrzInfoDelegate fired documentId=\(String(describing: documentId)) hasMrz=\(mrz != nil)")
+    AmaniLog.d("[AmaniBridge][IDCapture] mrzInfoDelegate fired hasMrz=\(mrz != nil)")
     guard let mrz = mrz else {
      
       emit(["type": "error", "data": ["type": "JSONConversion", "errors": ["error_code": "30022", "error_message": "mrz model is nil"]] as [String: Any]])

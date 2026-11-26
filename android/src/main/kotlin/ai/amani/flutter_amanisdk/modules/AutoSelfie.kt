@@ -75,7 +75,7 @@ class AutoSelfie: Module {
                 activity.removeFragment(frag)
 
                 activity.runOnUiThread {
-                    closeButton!!.visibility = View.GONE
+                    closeButton?.visibility = View.GONE
                 }
 
             }
@@ -101,8 +101,8 @@ class AutoSelfie: Module {
         } else {
             activity.runOnUiThread {
                 frag?.let {
-                    closeButton!!.visibility = View.GONE
-                    it.parentFragmentManager.beginTransaction().remove(frag!!).commit()
+                    closeButton?.visibility = View.GONE
+                    it.parentFragmentManager.beginTransaction().remove(it).commit()
                     frag = null
                     // This blocks the flutters back press action.
                     result.success(false)

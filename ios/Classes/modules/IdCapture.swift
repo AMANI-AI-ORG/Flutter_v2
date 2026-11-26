@@ -14,20 +14,30 @@ class IdCapture {
   private var sdkView: SDKView!
 
   public func start(stepID: Int, result: @escaping FlutterResult) {
-    let vc = UIApplication.shared.windows.last?.rootViewController
-    print("[AmaniBridge][IDCapture] start stepID=\(stepID)")
+    guard let vc = BridgeSecurity.topViewController() else {
+      result(FlutterError(code: "30007", message: "No active view controller to present the capture UI", details: nil))
+      return
+    }
+    AmaniLog.d("[AmaniBridge][IDCapture] start stepID=\(stepID)")
     do {
        let moduleView = try module.start(stepId: stepID) { image in
-          let data = image.pngData()
-          result(FlutterStandardTypedData(bytes: data!))
+          guard let payload = BridgeSecurity.pngResponse(image) else {
+            result(FlutterError(code: "30007", message: "Captured image could not be encoded", details: nil))
+            return
+          }
+          result(payload)
           DispatchQueue.main.async {
             self.sdkView.removeFromSuperview()
           }
         }
       
-      sdkView = SDKView(sdkView: moduleView!)
-      sdkView.start(on: vc!)
-      sdkView.setupBackButton(on: moduleView!)
+      guard let captureView = moduleView else {
+        result(FlutterError(code: "30032", message: "The SDK did not return a capture view", details: nil))
+        return
+      }
+      sdkView = SDKView(sdkView: captureView)
+      sdkView.start(on: vc)
+      sdkView.setupBackButton(on: captureView)
     } catch let err {
       result(FlutterError(code: "30007", message: err.localizedDescription, details: nil))
     }
@@ -35,11 +45,11 @@ class IdCapture {
   
   @available(iOS 13, *)
  public func startNFC(nvi: AmaniSDK.NviModel?, enablePACE: Bool? = nil) async -> Bool {
-  print("[AmaniBridge][IDCapture] startNFC called")
+  AmaniLog.d("[AmaniBridge][IDCapture] startNFC called")
   if let nvi = nvi {
     do {
        let result = await module.startNFC(nvi: nvi, enablePACE: enablePACE)
-      print("IDCAPTURE SWIFT TARAFINDA STARTNFC BASARIYLA TAMAMLANDI: \(result)")
+      AmaniLog.d("[AmaniBridge][IDCapture] startNFC finished success=\(result)")
       return result
     } catch(let error) {
      return false
@@ -55,7 +65,7 @@ class IdCapture {
   }
   
   public func upload(result: @escaping FlutterResult) {
-    print("[AmaniBridge][IDCapture] upload called")
+    AmaniLog.d("[AmaniBridge][IDCapture] upload called")
     module.upload { isSuccess in
       result(isSuccess)
     }
@@ -65,7 +75,7 @@ class IdCapture {
   /// Flutter receives: {"isSuccess": Bool, "documentId": String?}
   public func upload(result: @escaping FlutterResult, returnDocumentId: Bool) {
     guard returnDocumentId else { upload(result: result); return }
-    print("[AmaniBridge][IDCapture] upload with documentId called")
+    AmaniLog.d("[AmaniBridge][IDCapture] upload with documentId called")
     module.upload { (isSuccess: Bool?, documentId: String?) in
       UploadResultPayload.send(isSuccess: isSuccess, documentId: documentId, module: "IDCapture", to: result)
     }
@@ -87,10 +97,10 @@ class IdCapture {
   }
   // Requests MRZ data for the captured ID; the MRZ itself arrives via mrzInfoDelegate.
   public func getMrz(result: @escaping FlutterResult) {
-    print("[AmaniBridge][IDCapture] getMrz called")
+    AmaniLog.d("[AmaniBridge][IDCapture] getMrz called")
   
     self.module.getMrz { mrzData in 
-        print("[AmaniBridge][IDCapture] getMrz completed documentId=\(String(describing: mrzData))")
+        AmaniLog.d("[AmaniBridge][IDCapture] getMrz completed")
             result(mrzData)
     }
     }

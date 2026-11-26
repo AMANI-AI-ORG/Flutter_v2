@@ -17,7 +17,6 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     
     let instance = SwiftFlutterAmanisdkPlugin()
     instance.methodChannel = methodChannel
-    instance.methodChannel = methodChannel
     instance.delegateChannel = delegateChannel
     instance.delegateChannel.setStreamHandler(SwiftFlutterAmanisdkPlugin.eventHandler)
     
@@ -36,11 +35,17 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "30009", message: "sharedSecret must not be empty when provided", details: nil))
         return
       }
-      let server = arguments?["server"] as! String
-      let customerIdCardNumber = arguments?["customerIdCardNumber"] as! String
-      let customerToken = arguments?["customerToken"] as! String
-      let lang = arguments?["lang"] as! String
-      let useLocation = arguments?["useLocation"] as! Bool
+      guard let server = BridgeSecurity.validatedServer(arguments?["server"] as? String) else {
+        result(BridgeSecurity.invalidArgument("server must be a valid https URL"))
+        return
+      }
+      guard let customerIdCardNumber = arguments?["customerIdCardNumber"] as? String, !customerIdCardNumber.isEmpty,
+            let customerToken = arguments?["customerToken"] as? String, !customerToken.isEmpty,
+            let lang = arguments?["lang"] as? String else {
+        result(BridgeSecurity.invalidArgument("customerIdCardNumber, customerToken and lang are required"))
+        return
+      }
+      let useLocation = arguments?["useLocation"] as? Bool ?? false
       let apiVersion = arguments?["apiVersion"] as? String ?? "v2"
       let uploadSource = arguments?["uploadSource"] as? String ?? "KYC"
       initAmani(server: server, customerIdCardNumber: customerIdCardNumber, customerToken: customerToken, useLocation: useLocation, lang: lang , sharedSecret: sharedSecret, version: apiVersion, uploadSource: uploadSource, result: result)
@@ -51,12 +56,18 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "30009", message: "sharedSecret must not be empty when provided", details: nil))
         return
       }
-      let server = arguments?["server"] as! String
-      let customerIdCardNumber = arguments?["customerIdCardNumber"] as! String
-      let email = arguments?["email"] as! String
-      let password = arguments?["password"] as! String
-      let lang = arguments?["lang"] as! String
-      let useLocation = arguments?["useLocation"] as! Bool
+      guard let server = BridgeSecurity.validatedServer(arguments?["server"] as? String) else {
+        result(BridgeSecurity.invalidArgument("server must be a valid https URL"))
+        return
+      }
+      guard let customerIdCardNumber = arguments?["customerIdCardNumber"] as? String, !customerIdCardNumber.isEmpty,
+            let email = arguments?["email"] as? String, !email.isEmpty,
+            let password = arguments?["password"] as? String, !password.isEmpty,
+            let lang = arguments?["lang"] as? String else {
+        result(BridgeSecurity.invalidArgument("customerIdCardNumber, email, password and lang are required"))
+        return
+      }
+      let useLocation = arguments?["useLocation"] as? Bool ?? false
       let apiVersion = arguments?["apiVersion"] as? String ?? "v2"
       let uploadSource = arguments?["uploadSource"] as? String ?? "KYC"
       initAmaniWithEmail(server: server, customerIdCardNumber: customerIdCardNumber, email: email, password: password, useLocation: useLocation, lang: lang, sharedSecret: sharedSecret, version: apiVersion, uploadSource: uploadSource, result: result)
@@ -78,7 +89,10 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     // ID Capture
     case "setIDCaptureType":
       let idCapture = IdCapture()
-      let type = arguments?["type"] as! String
+      guard let type = arguments?["type"] as? String, !type.isEmpty else {
+        result(BridgeSecurity.invalidArgument("type is required"))
+        return
+      }
       idCapture.setType(type: type, result: result)
     case "startIDCapture":
       let idCapture = IdCapture()
@@ -86,15 +100,19 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       idCapture.start(stepID: stepID ?? 0, result: result)
     case "setIDCaptureManualButtonTimeout":
       let idCapture = IdCapture()
-      let timeout = arguments?["timeout"] as! Int
+      guard let timeout = arguments?["timeout"] as? Int else {
+        result(BridgeSecurity.invalidArgument("timeout is required"))
+        return
+      }
       idCapture.setManualCaptureButtonTimeout(timeout: timeout, result: result)
     case "iosIDCaptureNFC":
     
         if let arguments = call.arguments as? [String: Any], 
            let birthDate = arguments["birthDate"] as? String,
            let expireDate = arguments["expireDate"] as? String,
-           let documentNo = arguments["documentNo"] as? String {
-            print("[AmaniBridge][IDCapture] Starting NFC scan")
+           let documentNo = arguments["documentNo"] as? String,
+           !birthDate.isEmpty, !expireDate.isEmpty, !documentNo.isEmpty {
+            AmaniLog.d("[AmaniBridge][IDCapture] Starting NFC scan")
             
             let idCapture = IdCapture()
             Task {
@@ -127,7 +145,10 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     // Selfie
     case "setSelfieType":
       let selfie = Selfie()
-      let type = arguments?["type"] as! String
+      guard let type = arguments?["type"] as? String, !type.isEmpty else {
+        result(BridgeSecurity.invalidArgument("type is required"))
+        return
+      }
       selfie.setType(type: type, result: result)
     case "startSelfie":
       let selfie = Selfie()
@@ -138,13 +159,18 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     // AutoSelfie
     case "startAutoSelfie":
       let autoSelfie = AutoSelfie()
-      let decoder = JSONDecoder()
-      let iosArgs = arguments?["iosSettings"] as! String
-      let autoSelfieSettings = try! decoder.decode(AutoSelfieSettings.self, from: Data(iosArgs.utf8))
+      guard let iosArgs = arguments?["iosSettings"] as? String,
+            let autoSelfieSettings = try? JSONDecoder().decode(AutoSelfieSettings.self, from: Data(iosArgs.utf8)) else {
+        result(BridgeSecurity.invalidArgument("Invalid iosSettings for auto selfie"))
+        return
+      }
       autoSelfie.start(settings: autoSelfieSettings, result: result)
     case "setAutoSelfieType":
       let autoSelfie = AutoSelfie()
-      let type = arguments?["type"] as! String
+      guard let type = arguments?["type"] as? String, !type.isEmpty else {
+        result(BridgeSecurity.invalidArgument("type is required"))
+        return
+      }
       autoSelfie.setType(type: type, result: result)
     case "uploadAutoSelfie":
       let autoSelfie = AutoSelfie()
@@ -152,13 +178,18 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     // Pose Estimation
     case "startPoseEstimation":
       let poseEstimation = PoseEstimation()
-      let iosArgs = arguments?["iosSettings"] as! String
-      let decoder = JSONDecoder()
-      let poseEstimationSettings = try! decoder.decode(PoseEstimationSettings.self, from: Data(iosArgs.utf8))
+      guard let iosArgs = arguments?["iosSettings"] as? String,
+            let poseEstimationSettings = try? JSONDecoder().decode(PoseEstimationSettings.self, from: Data(iosArgs.utf8)) else {
+        result(BridgeSecurity.invalidArgument("Invalid iosSettings for pose estimation"))
+        return
+      }
       poseEstimation.start(settings: poseEstimationSettings, result: result)
     case "setPoseEstimationType":
         let poseEstimation = PoseEstimation()
-        let type = arguments?["type"] as! String
+        guard let type = arguments?["type"] as? String, !type.isEmpty else {
+          result(BridgeSecurity.invalidArgument("type is required"))
+          return
+        }
         poseEstimation.setType(type: type, result: result)
     case "setPoseEstimationVideoRecording":
       let poseEstimation = PoseEstimation()
@@ -173,7 +204,10 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
       let speechVerifier = SpeechVerifier()
       // Keep the instance alive: the upload call needs the verifier built in start.
       self.speechVerifierInstance = speechVerifier
-      let iosArgs = arguments?["iosSettings"] as! String
+      guard let iosArgs = arguments?["iosSettings"] as? String else {
+        result(BridgeSecurity.invalidArgument("iosSettings is required"))
+        return
+      }
       speechVerifier.start(settingsJSON: iosArgs, result: result)
     case "uploadSpeechVerifier":
         guard let speechVerifier = speechVerifierInstance else {
@@ -201,15 +235,10 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         Task {
             do {
                 let nfc = NFC()
-                guard let nviData = arguments?["nviData"] as? [String: String] else {
+                guard let nviModel = Self.nviModel(from: arguments) else {
                     result(FlutterError(code: "400", message: "Invalid arguments", details: nil))
                     return
                 }
-                let nviModel = NviModel(
-                    documentNo: nviData["documentNo"]!,
-                    dateOfBirth: nviData["dateOfBirth"]!,
-                    dateOfExpire: nviData["dateOfExpire"]!
-                )
                 try await nfc.start(nviData: nviModel, result: result)
             } catch {
                 result(FlutterError(code: "500", message: "Internal error", details: nil))
@@ -220,8 +249,10 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         Task {
             do {
                 let nfc = NFC()
-                 let nviData = arguments?["nviData"] as! [String: String]
-                 let nviModel = NviModel(documentNo: nviData["documentNo"]!, dateOfBirth: nviData["dateOfBirth"]!, dateOfExpire: nviData["dateOfExpire"]!)
+                guard let nviModel = Self.nviModel(from: arguments) else {
+                    result(FlutterError(code: "400", message: "Invalid arguments", details: nil))
+                    return
+                }
                 try await nfc.start(nviData: nviModel, result: result)  
                 
             } catch let err {
@@ -233,16 +264,19 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     }
     case "iOSsetNFCType":
         let nfc = NFC()
-        let type = arguments?["type"] as! String
+        guard let type = arguments?["type"] as? String, !type.isEmpty else {
+          result(BridgeSecurity.invalidArgument("type is required"))
+          return
+        }
         nfc.setType(type: type, result: result)
     case "iOSuploadNFC":
         let nfc = NFC()
         nfc.upload(result: result, returnDocumentId: returnDocumentId)
     // BioLogin
     case "initBioLogin":
-      guard let server = arguments?["server"] as? String,
-            let token = arguments?["token"] as? String else {
-        result(FlutterError(code: "30009", message: "server and token are required", details: nil))
+      guard let server = BridgeSecurity.validatedServer(arguments?["server"] as? String),
+            let token = arguments?["token"] as? String, !token.isEmpty else {
+        result(FlutterError(code: "30009", message: "a valid https server and token are required", details: nil))
         return
       }
       // Optional: nil means "not set", but a provided value must not be empty or blank.
@@ -279,12 +313,15 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         getCustomerInfo(result: result)
     // MARK: Document Capture
     case "startDocumentCapture":
-      let documentCount = arguments!["documentCount"] as! Int? ?? 1
+      let documentCount = arguments?["documentCount"] as? Int ?? 1
       let documentCapture = DocumentCapture()
       documentCapture.start(documentCount: documentCount, result: result)
     case "setDocumentCaptureType":
       let documentCapture = DocumentCapture()
-      let documentType = arguments!["type"] as! String
+      guard let documentType = arguments?["type"] as? String, !documentType.isEmpty else {
+        result(BridgeSecurity.invalidArgument("type is required"))
+        return
+      }
       documentCapture.setType(type: documentType, result: result)
     case "documentCaptureUpload":
       let documentCapture = DocumentCapture()
@@ -293,6 +330,17 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  /// Builds an NviModel from the "nviData" argument; nil when a field is missing or empty.
+  private static func nviModel(from arguments: [String: Any]?) -> NviModel? {
+    guard let nviData = arguments?["nviData"] as? [String: String],
+          let documentNo = nviData["documentNo"], !documentNo.isEmpty,
+          let dateOfBirth = nviData["dateOfBirth"], !dateOfBirth.isEmpty,
+          let dateOfExpire = nviData["dateOfExpire"], !dateOfExpire.isEmpty else {
+      return nil
+    }
+    return NviModel(documentNo: documentNo, dateOfBirth: dateOfBirth, dateOfExpire: dateOfExpire)
   }
 
   /// Maps the optional "files" argument (list of {data, dataType}) to Core SDK files.
@@ -330,6 +378,8 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         result(true)
       } else if let err = err {
         result(FlutterError(code: String(err.error_code), message: "Couldn't login to Amani server", details: err.error_message))
+      } else {
+        result(FlutterError(code: "30010", message: "Couldn't login to Amani server", details: nil))
       }
     }
   }
@@ -353,6 +403,8 @@ public class SwiftFlutterAmanisdkPlugin: NSObject, FlutterPlugin {
         result(true)
       } else if let err = err {
         result(FlutterError(code: String(err.error_code), message: "Couldn't login to Amani server", details: err.error_message))
+      } else {
+        result(FlutterError(code: "30010", message: "Couldn't login to Amani server", details: nil))
       }
     }
   }

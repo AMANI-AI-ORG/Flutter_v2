@@ -44,7 +44,7 @@ class SpeechVerifierModule(
         val settings = try {
             JSONObject(settingsJson)
         } catch (e: Exception) {
-            result.error("30031", "Invalid speech verifier settings: ${e.message}", null)
+            result.error("30031", "Invalid speech verifier settings (malformed JSON)", null)
             return
         }
 
@@ -54,6 +54,11 @@ class SpeechVerifierModule(
         // Session (serverURL + token) — required for upload & identity fetch.
         val serverURL = settings.optStringOrNull("serverURL")
         val token = settings.optStringOrNull("token")
+        val debuggable = (fragmentActivity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (serverURL != null && ai.amani.flutter_amanisdk.BridgeSecurity.validatedServer(serverURL, debuggable) == null) {
+            result.error("INVALID_ARGUMENT", "serverURL must be a valid https URL.", null)
+            return
+        }
         if (serverURL != null && token != null) {
             builder.session(serverURL = serverURL, token = token)
         }

@@ -51,9 +51,11 @@ class Selfie: Module {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
                 result.success(stream.toByteArray())
 
-                fa.supportFragmentManager.beginTransaction()
-                    .remove(frag!!)
-                    .commitAllowingStateLoss()
+                frag?.let { f ->
+                    fa.supportFragmentManager.beginTransaction()
+                        .remove(f)
+                        .commitAllowingStateLoss()
+                }
 
                 fa.runOnUiThread { closeButton?.visibility = View.GONE }
                 frag = null

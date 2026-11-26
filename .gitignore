@@ -28,3 +28,17 @@ migrate_working_dir/
 .dart_tool/
 .packages
 build/
+
+
+# Secrets and signing material must never be committed
+key.properties
+*.jks
+*.keystore
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+.env
+.env.*
+google-services.json
+GoogleService-Info.plist

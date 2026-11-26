@@ -14,10 +14,13 @@ class DocumentCapture {
   private var sdkView: SDKView!
 
   func start(documentCount: Int? = 1, result: @escaping FlutterResult) {
-    let vc = UIApplication.shared.windows.last?.rootViewController
+    guard let vc = BridgeSecurity.topViewController() else {
+      result(FlutterError(code: "30007", message: "No active view controller to present the capture UI", details: nil))
+      return
+    }
 
     do {
-      if let moduleView = try module.start(stepId: documentCount!-1, completion: { image in
+      if let moduleView = try module.start(stepId: max((documentCount ?? 1) - 1, 0), completion: { image in
         if let data = image.pngData() {
           result(FlutterStandardTypedData(bytes: data))
         }
@@ -26,7 +29,7 @@ class DocumentCapture {
         }
       }) {
         sdkView = SDKView(sdkView: moduleView)
-        sdkView.start(on: vc!)
+        sdkView.start(on: vc)
         sdkView.setupBackButton(on: moduleView)
       }
     } catch {
