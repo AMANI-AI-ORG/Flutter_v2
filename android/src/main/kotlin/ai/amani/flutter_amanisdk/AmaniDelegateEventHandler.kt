@@ -7,7 +7,6 @@ import ai.amani.sdk.model.amani_events.profile_status.ProfileStatus
 import ai.amani.sdk.model.amani_events.steps_result.StepsResult
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.google.gson.Gson
 import io.flutter.plugin.common.EventChannel
 
@@ -85,7 +84,7 @@ class AmaniDelegateEventHandler : EventChannel.StreamHandler {
         try {
           Amani.sharedInstance().AmaniEvent().removeListener()
         } catch (e: Exception) {
-          Log.w(TAG, "removeListener failed", e)
+          BridgeLog.w(TAG, "removeListener failed", e)
         }
         // The next onListen re-attaches, which also lets the SDK recover missed verdicts.
         isAttached = false
@@ -118,7 +117,7 @@ class AmaniDelegateEventHandler : EventChannel.StreamHandler {
         Amani.sharedInstance().AmaniEvent().setListener(callback)
         isAttached = true
       } catch (e: Exception) {
-        Log.w(TAG, "AmaniEvent listener could not be attached yet, will retry", e)
+        BridgeLog.w(TAG, "AmaniEvent listener could not be attached yet, will retry", e)
       }
     }
   }
@@ -131,7 +130,7 @@ class AmaniDelegateEventHandler : EventChannel.StreamHandler {
         try {
           Amani.sharedInstance().AmaniEvent().removeListener()
         } catch (e: Exception) {
-          Log.w(TAG, "removeListener failed", e)
+          BridgeLog.w(TAG, "removeListener failed", e)
         }
       }
       isAttached = false

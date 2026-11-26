@@ -1,6 +1,8 @@
 
 package ai.amani.flutter_amanisdk.modules
 
+import ai.amani.flutter_amanisdk.BridgeLog
+
 import ai.amani.flutter_amanisdk.R
 import ai.amani.flutter_amanisdk.modules.config_models.AutoSelfieSettings
 import ai.amani.flutter_amanisdk.modules.config_models.PoseEstimationSettings
@@ -16,7 +18,6 @@ import android.content.Context //  FIX: Context import
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -60,7 +61,7 @@ class BioLogin {
         // network client and can override the configured session, so it is not
         // called here. server, token and sharedSecret are kept for API
         // compatibility; the session's own values are used.
-        Log.d("AmaniBridge", "[BioLogin] init: using the SDK session started with configure + startSession")
+        BridgeLog.d("AmaniBridge", "[BioLogin] init: using the SDK session started with configure + startSession")
 
         this.appContext = activity.applicationContext
 
@@ -324,7 +325,7 @@ class BioLogin {
         val replied = AtomicBoolean(false)
         fun reply(isSuccess: Boolean?, documentId: String?) {
             if (!replied.compareAndSet(false, true)) return
-            Log.d("AmaniBridge", "[BioLogin] upload result isSuccess=$isSuccess documentId=$documentId")
+            BridgeLog.d("AmaniBridge", "[BioLogin] upload result isSuccess=$isSuccess")
             val payload = mapOf("isSuccess" to (isSuccess == true), "documentId" to documentId)
             Handler(Looper.getMainLooper()).post { completion.success(payload) }
         }
@@ -337,7 +338,7 @@ class BioLogin {
                 reply(result, documentID)
             })
         } catch (e: Exception) {
-            Log.e("AmaniBridge", "[BioLogin] upload failed", e)
+            BridgeLog.e("AmaniBridge", "[BioLogin] upload failed", e)
             reply(false, null)
         }
     }

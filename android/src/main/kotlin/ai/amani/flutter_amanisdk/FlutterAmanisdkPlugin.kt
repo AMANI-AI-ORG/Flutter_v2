@@ -12,7 +12,7 @@ import ai.amani.sdk.DynamicFeature
 import ai.amani.sdk.UploadSource
 import ai.amani.sdk.model.customer.CustomerDetailResult
 import ai.amani.sdk.modules.customer.detail.CustomerDetailObserver
-import io.flutter.Log
+import androidx.fragment.app.FragmentActivity
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -31,12 +31,17 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
   private val delegateHandler = AmaniDelegateEventHandler()
 
   private var activity: Activity? = null
+
+  /** Native modules host fragments, so they need a FragmentActivity; anything else would crash on a cast. */
+  private val fragmentActivity: FragmentActivity?
+    get() = activity as? FragmentActivity
   private var appContext: Context? = null
   private var isConfigured: Boolean = false
   private var speechVerifierModule: SpeechVerifierModule? = null
 
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     appContext = binding.applicationContext
+    BridgeLog.init(binding.applicationContext)
 
     channel = MethodChannel(binding.binaryMessenger, "amanisdk_method_channel")
     channel.setMethodCallHandler(this)
@@ -74,6 +79,17 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    // Last line of defence: a malformed argument from Dart must become a channel error,
+    // never an uncaught exception inside the host app.
+    try {
+      handleMethodCall(call, result)
+    } catch (e: Exception) {
+      BridgeLog.e("AmaniFlutterBridge", "Unhandled error in ${call.method}", e)
+      result.error("BRIDGE_ERROR", "Unexpected error while handling '${call.method}'", null)
+    }
+  }
+
+  private fun handleMethodCall(call: MethodCall, result: MethodChannel.Result) {
     // Upload calls return {"isSuccess", "documentId"} instead of a Boolean when this is true.
     val returnDocumentId = (call.arguments as? Map<*, *>)?.get("returnDocumentId") == true
 
@@ -94,8 +110,9 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         val ctx = appContext
         val act = activity
 
-        if (server.isNullOrBlank() || customerIdCardNumber.isNullOrBlank() || customerToken.isNullOrBlank()) {
-          result.error("INVALID_ARGUMENT", "server/customerIdCardNumber/customerToken must not be null or empty.", null)
+        val safeServer = validatedServer(server)
+        if (safeServer == null || customerIdCardNumber.isNullOrBlank() || customerToken.isNullOrBlank()) {
+          result.error("INVALID_ARGUMENT", "server must be a valid https URL and customerIdCardNumber/customerToken must not be empty.", null)
           return
         }
         // Optional: null means "not set", but a provided value must not be empty or blank.
@@ -116,7 +133,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           initAmani(
             context = ctx,
             activity = act,
-            server = server,
+            server = safeServer,
             customerToken = customerToken,
             customerIdCardNumber = customerIdCardNumber,
             lang = lang,
@@ -168,8 +185,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "startIDCapture" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val stepID = call.argument<Int>("stepID") ?: 0
@@ -207,16 +224,16 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "uploadIDCapture" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         IdCapture.instance.upload(act, result, returnDocumentId)
       }
 
       "idCaptureAndroidBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         IdCapture.instance.backPressHandle(act, result)
@@ -231,24 +248,24 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "startSelfie" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         Selfie.instance.start(0, act, result)
       }
 
       "selfieAndroidBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         Selfie.instance.backPressHandle(act, result)
       }
 
       "uploadSelfie" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         Selfie.instance.upload(act, result, returnDocumentId)
@@ -258,8 +275,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // AutoSelfie
       // -------------------------
       "startAutoSelfie" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val androidSettings = call.argument<String>("androidSettings")
@@ -267,7 +284,10 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("Missing Settings", "androidSettings is required", null)
           return
         }
-        val model = androidSettings.toObject<AutoSelfieSettings>()
+        val model = androidSettings.toObject<AutoSelfieSettings>() ?: run {
+          result.error("INVALID_ARGUMENT", "androidSettings is not valid JSON", null)
+          return
+        }
         AutoSelfie.instance.setSettings(model)
         AutoSelfie.instance.start(0, act, result)
       }
@@ -278,16 +298,16 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "autoSelfieAndroidBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         AutoSelfie.instance.backPressHandle(act, result)
       }
 
       "uploadAutoSelfie" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         AutoSelfie.instance.upload(act, result, returnDocumentId)
@@ -297,8 +317,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // Pose Estimation
       // -------------------------
       "startPoseEstimation" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val androidSettings = call.argument<String>("androidSettings")
@@ -306,7 +326,10 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("Missing Settings", "androidSettings is required", null)
           return
         }
-        val model = androidSettings.toObject<PoseEstimationSettings>()
+        val model = androidSettings.toObject<PoseEstimationSettings>() ?: run {
+          result.error("INVALID_ARGUMENT", "androidSettings is not valid JSON", null)
+          return
+        }
         PoseEstimation.instance.setSettings(model)
         PoseEstimation.instance.start(0, act, result)
       }
@@ -317,16 +340,16 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "poseEstimationAndroidBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         PoseEstimation.instance.backPressHandle(act, result)
       }
 
       "uploadPoseEstimation" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         PoseEstimation.instance.upload(act, result, returnDocumentId)
@@ -341,8 +364,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // Speech Verifier
       // -------------------------
     "startSpeechVerifier" -> {
-      val act = activity ?: run {
-        result.error("NO_ACTIVITY", "Activity is null", null)
+      val act = fragmentActivity ?: run {
+        result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
         return
      }
     
@@ -377,8 +400,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // NFC
       // -------------------------
       "androidStartNFC" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
 
@@ -424,8 +447,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // Signature
       // -------------------------
       "startSignature" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         @Suppress("UNCHECKED_CAST")
@@ -438,8 +461,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "signatureAndroidBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         SignatureCapture.instance.backPressHandle(act, result)
@@ -449,8 +472,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // BioLogin
       // -------------------------
       "initBioLogin" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
 
@@ -462,8 +485,9 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         val comparisonAdapter = call.argument<Int>("comparisonAdapter")
         val sharedSecret = call.argument<String>("sharedSecret")
 
-        if (server.isNullOrBlank() || token.isNullOrBlank()) {
-          result.error("INVALID_ARGUMENT", "server and token must not be null or empty.", null)
+        val safeServer = validatedServer(server)
+        if (safeServer == null || token.isNullOrBlank()) {
+          result.error("INVALID_ARGUMENT", "server must be a valid https URL and token must not be empty.", null)
           return
         }
         // Optional: null means "not set", but a provided value must not be empty or blank.
@@ -473,7 +497,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         }
 
         BioLogin.instance.initBioLogin(
-          server,
+          safeServer,
           sharedSecret,
           token,
           comparisonAdapter,
@@ -485,8 +509,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "startBioLoginWithAutoSelfie" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val androidSettings = call.argument<String>("androidSettings")
@@ -494,13 +518,16 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("Missing Settings", "androidSettings is required", null)
           return
         }
-        val model = androidSettings.toObject<AutoSelfieSettings>()
+        val model = androidSettings.toObject<AutoSelfieSettings>() ?: run {
+          result.error("INVALID_ARGUMENT", "androidSettings is not valid JSON", null)
+          return
+        }
         BioLogin.instance.startWithAutoSelfie(model, act, result)
       }
 
       "androidStartBioLoginWithPoseEstimation" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val androidSettings = call.argument<String>("androidSettings")
@@ -508,13 +535,16 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
           result.error("Missing Settings", "androidSettings is required", null)
           return
         }
-        val model = androidSettings.toObject<PoseEstimationSettings>()
+        val model = androidSettings.toObject<PoseEstimationSettings>() ?: run {
+          result.error("INVALID_ARGUMENT", "androidSettings is not valid JSON", null)
+          return
+        }
         BioLogin.instance.startWithPoseEstimation(model, act, result, bioLoginChannel)
       }
 
       "startBioLoginWithManualSelfie" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val selfieDescriptionText = call.argument<String>("androidSelfieDescriptionText")
@@ -526,8 +556,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "bioLoginAndroidBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         BioLogin.instance.backPressHandle(act, result)
@@ -546,8 +576,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       // Document capture
       // -------------------------
       "startDocumentCapture" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val docCountParam = call.argument<Int>("documentCount") ?: 1
@@ -560,8 +590,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "documentCaptureUpload" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         val files = call.argument<List<Map<String, Any>>>("files")
@@ -575,8 +605,8 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       }
 
       "documentCaptureBackPressHandle" -> {
-        val act = activity ?: run {
-          result.error("NO_ACTIVITY", "Activity is null", null)
+        val act = fragmentActivity ?: run {
+          result.error("NO_ACTIVITY", "Activity is null or not a FragmentActivity", null)
           return
         }
         DocumentCapture.instance.backPressHandle(act, result)
@@ -593,9 +623,9 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       return
     }
 
-    val server = call.argument<String>("server")
-    if (server.isNullOrBlank()) {
-      result.error("INVALID_ARGUMENT", "Argument 'server' must not be null or empty.", null)
+    val server = validatedServer(call.argument<String>("server"))
+    if (server == null) {
+      result.error("INVALID_ARGUMENT", "Argument 'server' must be a valid https URL.", null)
       return
     }
 
@@ -646,7 +676,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       delegateHandler.onSdkConfigured()
       result.success(null)
     } catch (e: Exception) {
-      result.error("CONFIGURE_FAILED", "Amani.configure failed: ${e.message}", null)
+      result.error("CONFIGURE_FAILED", "Amani.configure failed (${e.javaClass.simpleName})", null)
     }
   }
 
@@ -698,17 +728,17 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
             userPhoneNumber = phone,
             userEmail = email,
             callback = { isSuccess ->
-                Log.d("AmaniFlutterBridge", "startSession completed: $isSuccess, language: $lang")
+                BridgeLog.d("AmaniFlutterBridge", "startSession completed: $isSuccess, language: $lang")
                 delegateHandler.attachToSdk()
                 result.success(isSuccess)
             }
         )
     } catch (e: Exception) {
-        Log.e("AmaniFlutterBridge", "startSession failed", e)
+        BridgeLog.e("AmaniFlutterBridge", "startSession failed", e)
 
         result.error(
             "START_SESSION_FAILED",
-            "Amani.startSession failed: ${e.message}",
+            "Amani.startSession failed (${e.javaClass.simpleName})",
             null
         )
     }
@@ -739,7 +769,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
       )
       delegateHandler.onSdkConfigured()
     } catch (e: Exception) {
-      result.error("CONFIGURE_FAILED", "Amani.configure failed: ${e.message}", null)
+      result.error("CONFIGURE_FAILED", "Amani.configure failed (${e.javaClass.simpleName})", null)
       return
     }
 
@@ -757,7 +787,7 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         }
       )
     } catch (e: Exception) {
-      result.error("INIT_FAILED", "initAmani failed: ${e.message}", null)
+      result.error("INIT_FAILED", "initAmani failed (${e.javaClass.simpleName})", null)
     }
   }
 
@@ -809,6 +839,13 @@ class FlutterAmanisdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ac
         result.success(customerInfoDict)
       }
     })
+  }
+
+  private fun validatedServer(server: String?): String? {
+    val debuggable = appContext?.let {
+      (it.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    } ?: false
+    return BridgeSecurity.validatedServer(server, allowCleartext = debuggable)
   }
 
   private fun isSpeechVerifierAvailable(): Boolean {

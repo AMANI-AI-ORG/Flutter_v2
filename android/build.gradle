@@ -21,6 +21,8 @@ rootProject.allprojects {
         }
         maven {
             url = "https://jfrog.amani.ai/artifactory/amani-speech-verifier"
+            // Only resolve Amani artifacts from this repository (dependency-confusion guard).
+            content { includeGroup "ai.amani.android" }
         }
     }
 }
@@ -100,6 +102,6 @@ dependencies {
 
     // The AmaniAi POM published on GitHub Maven declares these with `runtime` scope,
     // so they are not on this module's compile classpath. The plugin code uses them directly.
-    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.jetbrains.kotlin:kotlin-parcelize-runtime:1.8.20'
 }

@@ -173,7 +173,7 @@ class BioLoginCapture {
 
     DispatchQueue.main.async { [weak self] in
       guard let self else { return }
-      guard let vc = UIApplication.shared.windows.last?.rootViewController else {
+      guard let vc = BridgeSecurity.topViewController() else {
         result(FlutterError(code: "30050", message: "Could not find a view controller to present BioLogin.", details: nil))
         return
       }

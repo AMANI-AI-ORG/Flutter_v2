@@ -104,27 +104,15 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
 
   // Not part of AmaniSDKPlatform; kept for direct MethodChannelAmaniSDK callers.
   Future<String?> getMrzRequest() async {
+    // The result is MRZ-derived personal data: it is returned to the caller but
+    // never printed, because debug output reaches device logs.
+    final String? result = await methodChannel.invokeMethod<String>('getMrz');
+    if (result == null) return null;
     try {
-
-     final String? result = await methodChannel.invokeMethod<String>('getMrz');
-      debugPrint("[AmaniSDK] getMrz returned documentId: $result");
-      if (result != null) {
-        
-      try {
-        var resultMap = await json.decode(json.encode(result));
-        debugPrint("[AmaniSDK] getMrz result returned to caller: $resultMap");
-        return resultMap;
-      } catch (e) {
-        debugPrint("JSON decoding failed: $e");
-        return null;
-      }
-
-    } else {
-      debugPrint("Result nil geldi");
-    }
-    return null;
-    } catch (err) {
-      rethrow;
+      return json.decode(json.encode(result)) as String?;
+    } on FormatException catch (_) {
+      debugPrint("[AmaniSDK] getMrz result could not be decoded");
+      return null;
     }
   }
 
@@ -168,17 +156,18 @@ class MethodChannelAmaniSDK extends AmaniSDKPlatform {
     try {
        if (mrzResult.isNotEmpty) {
         mrzResult.forEach((key, value) {
+          // Values come from a native event; tolerate null/non-string entries.
+          final text = value?.toString() ?? "";
           if (key == "mrzDocumentNumber") {
-            mrzDocumentNo = value;
+            mrzDocumentNo = text;
           } else if (key == "mrzExpiryDate") {
-            mrzDateOfExpire = value;
+            mrzDateOfExpire = text;
           } else if (key == "mrzBirthDate") {
-            mrzDateOfBirth = value;
+            mrzDateOfBirth = text;
           }
         });
         
       }
-      debugPrint("Sending arguments to iOS DateOfBirth: $mrzDateOfBirth");
       final bool isDone = await methodChannel.invokeMethod('iosIDCaptureNFC', {
         "birthDate": mrzDateOfBirth,
         "expireDate": mrzDateOfExpire,

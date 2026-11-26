@@ -39,7 +39,10 @@ class SpeechVerifier {
       return
     }
 
-    let vc = UIApplication.shared.windows.last?.rootViewController
+    guard let vc = BridgeSecurity.topViewController() else {
+      result(FlutterError(code: "30007", message: "No active view controller to present the capture UI", details: nil))
+      return
+    }
 
     guard let serverURL = SwiftFlutterAmanisdkPlugin.sessionServerURL,
           let token = SwiftFlutterAmanisdkPlugin.sessionToken else {
@@ -80,20 +83,20 @@ class SpeechVerifier {
 
   builder
    .onSuccess { [weak self] success in
-    print("SV bridge onSuccess fired, success =", success)
+    AmaniLog.d("SV bridge onSuccess fired, success = \(success)")
     guard success == true, !didReturn else {
-      print("SV bridge onSuccess skipped — success:\(success) didReturn:\(didReturn)")
+      AmaniLog.d("SV bridge onSuccess skipped — success:\(success) didReturn:\(didReturn)")
       return
     }
     didReturn = true
-    print("SV bridge returning result to Flutter")
+    AmaniLog.d("SV bridge returning result to Flutter")
     result(FlutterStandardTypedData(bytes: Data()))
     DispatchQueue.main.async {
       self?.sdkView?.removeFromSuperview()
     }
   }
       .onFailure { reason, currentAttempt in
-        print("Speech Verifier failure:", reason.rawValue, "attempt:", currentAttempt)
+        AmaniLog.d("Speech Verifier failure: \(reason.rawValue) attempt: \(currentAttempt)")
         // Failures are surfaced via the delegate/onError channel; we keep
         // the view up so the user can retry, matching the native example.
       }
@@ -111,7 +114,7 @@ class SpeechVerifier {
       }
 
       sdkView = SDKView(sdkView: moduleView)
-      sdkView.start(on: vc!)
+      sdkView.start(on: vc)
       sdkView.setupBackButton(on: moduleView)
     } catch let err {
       result(FlutterError(code: "30007", message: err.localizedDescription, details: nil))

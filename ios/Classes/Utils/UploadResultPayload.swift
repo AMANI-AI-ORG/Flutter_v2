@@ -15,7 +15,7 @@ enum UploadResultPayload {
     module: String,
     to result: @escaping FlutterResult
   ) {
-    print("[AmaniBridge][\(module)] upload result isSuccess=\(String(describing: isSuccess)) documentId=\(String(describing: documentId))")
+    AmaniLog.d("[AmaniBridge][\(module)] upload result isSuccess=\(String(describing: isSuccess))")
     let payload: [String: Any] = [
       "isSuccess": isSuccess ?? false,
       "documentId": documentId ?? NSNull(),

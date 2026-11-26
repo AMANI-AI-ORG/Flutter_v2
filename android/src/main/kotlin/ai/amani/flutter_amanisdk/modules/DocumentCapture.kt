@@ -57,19 +57,21 @@ class DocumentCapture: Module {
 
         frag = Amani.sharedInstance().Document().start(docType, null, container, object: IDocumentCallBack {
             override fun cb(listOfDocumentAbsolutePath: ArrayList<String>?, isSuccess: Boolean) {
-                if (listOfDocumentAbsolutePath?.last() == null) {
+                val path = listOfDocumentAbsolutePath?.lastOrNull()
+                val bitmap: Bitmap? = path?.let { BitmapFactory.decodeFile(it) }
+                if (bitmap == null) {
+                    // Reply exactly once; the former code replied an error and then kept going.
                     result.error("30013", "No images are returned from DocumentCapture", null)
+                } else {
+                    val stream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+                    result.success(stream.toByteArray())
                 }
-
-                val bitmap: Bitmap = BitmapFactory.decodeFile(listOfDocumentAbsolutePath?.last())
-                val stream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-                result.success(stream.toByteArray())
 
                 activity.removeFragment(frag)
 
                 activity.runOnUiThread {
-                    closeButton!!.visibility = View.GONE
+                    closeButton?.visibility = View.GONE
                 }
 
                 frag = null
@@ -98,8 +100,8 @@ class DocumentCapture: Module {
         } else {
             activity.runOnUiThread {
                 frag?.let {
-                    closeButton!!.visibility = View.GONE
-                    it.parentFragmentManager.beginTransaction().remove(frag!!).commit()
+                    closeButton?.visibility = View.GONE
+                    it.parentFragmentManager.beginTransaction().remove(it).commit()
                     frag = null
                     // This blocks the flutters back press action.
                     result.success(false)
@@ -111,11 +113,13 @@ class DocumentCapture: Module {
     //                                   data, dataType
     //                                   ByteArray, string
    fun setFiles(files: List<Map<String, Any>>) {
-        filesToUpload = files.map {
-            val data = it.getValue("data") as ByteArray
-            val type = it.getValue("dataType") as String
-            FileWithType(data, type)
-        } as ArrayList<FileWithType>
+        // Skip malformed entries instead of crashing on an unchecked cast.
+        val parsed = files.mapNotNull {
+            val data = it["data"] as? ByteArray
+            val type = it["dataType"] as? String
+            if (data == null || type.isNullOrEmpty()) null else FileWithType(data, type)
+        }
+        filesToUpload = if (parsed.isEmpty()) null else ArrayList(parsed)
     }
 
     /** Drops files set by an earlier call, so the captured document is uploaded instead. */

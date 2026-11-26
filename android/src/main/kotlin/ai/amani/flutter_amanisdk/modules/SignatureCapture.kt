@@ -1,5 +1,7 @@
 package ai.amani.flutter_amanisdk.modules
 
+import ai.amani.flutter_amanisdk.BridgeLog
+
 import ai.amani.flutter_amanisdk.R
 import ai.amani.sdk.Amani
 import ai.amani.sdk.modules.signature.interfaces.ISignatureStartCallBack
@@ -9,7 +11,6 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -79,7 +80,7 @@ class SignatureCapture {
                 .commitAllowingStateLoss()
 
             updateCounter(0)
-            Log.d("AmaniBridge", "[Signature] started, expecting ${settings.count} signature(s)")
+            BridgeLog.d("AmaniBridge", "[Signature] started, expecting ${settings.count} signature(s)")
         }
     }
 
@@ -126,10 +127,10 @@ class SignatureCapture {
     private fun onSignatureConfirmed(fa: FragmentActivity, bitmap: Bitmap?, count: Int) {
         if (bitmap == null) {
             // The SDK reports an empty canvas with a null bitmap; wait for a real signature.
-            Log.d("AmaniBridge", "[Signature] confirm pressed on an empty canvas")
+            BridgeLog.d("AmaniBridge", "[Signature] confirm pressed on an empty canvas")
             return
         }
-        Log.d("AmaniBridge", "[Signature] signature $count of $total confirmed")
+        BridgeLog.d("AmaniBridge", "[Signature] signature $count of $total confirmed")
         updateCounter(count)
         if (count < total) return
 
@@ -142,7 +143,7 @@ class SignatureCapture {
     }
 
     private fun cancel(fa: FragmentActivity) {
-        Log.d("AmaniBridge", "[Signature] cancelled by the user")
+        BridgeLog.d("AmaniBridge", "[Signature] cancelled by the user")
         val result = pendingResult
         pendingResult = null
         dismiss(fa)

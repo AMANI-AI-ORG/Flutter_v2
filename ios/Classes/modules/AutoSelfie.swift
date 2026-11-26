@@ -14,7 +14,10 @@ class AutoSelfie {
   private var sdkView: SDKView!
   
   func start(settings: AutoSelfieSettings, result: @escaping FlutterResult) {
-    let vc = UIApplication.shared.windows.last?.rootViewController
+    guard let vc = BridgeSecurity.topViewController() else {
+      result(FlutterError(code: "30007", message: "No active view controller to present the capture UI", details: nil))
+      return
+    }
     
     module.setInfoMessages(infoMessages: [
       .faceTooBig: settings.faceTooBig,
@@ -36,16 +39,23 @@ class AutoSelfie {
     
     do {
       let moduleView = try module.start { image in
-        let data = image.pngData()
-        result(FlutterStandardTypedData(bytes: data!))
+        guard let payload = BridgeSecurity.pngResponse(image) else {
+          result(FlutterError(code: "30007", message: "Captured image could not be encoded", details: nil))
+          return
+        }
+        result(payload)
         DispatchQueue.main.async {
           self.sdkView.removeFromSuperview()
         }
       }
       
-      sdkView = SDKView(sdkView: moduleView!)
-      sdkView.start(on: vc!)
-      sdkView.setupBackButton(on: moduleView!)
+      guard let captureView = moduleView else {
+        result(FlutterError(code: "30032", message: "The SDK did not return a capture view", details: nil))
+        return
+      }
+      sdkView = SDKView(sdkView: captureView)
+      sdkView.start(on: vc)
+      sdkView.setupBackButton(on: captureView)
     } catch let err {
       result(FlutterError(code: "30007", message: err.localizedDescription, details: nil))
     }

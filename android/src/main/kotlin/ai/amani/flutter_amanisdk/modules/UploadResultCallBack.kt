@@ -1,9 +1,10 @@
 package ai.amani.flutter_amanisdk.modules
 
+import ai.amani.flutter_amanisdk.BridgeLog
+
 import ai.amani.sdk.interfaces.IUploadCallBack
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -22,7 +23,7 @@ fun MethodChannel.Result.uploadResultCallBack(module: String): IUploadCallBack {
 
     fun reply(isSuccess: Boolean, documentId: String?) {
         if (!replied.compareAndSet(false, true)) return
-        Log.d("AmaniBridge", "[$module] upload result isSuccess=$isSuccess documentId=$documentId")
+        BridgeLog.d("AmaniBridge", "[$module] upload result isSuccess=$isSuccess")
         val payload = mapOf("isSuccess" to isSuccess, "documentId" to documentId)
         Handler(Looper.getMainLooper()).post { result.success(payload) }
     }
@@ -35,7 +36,8 @@ fun MethodChannel.Result.uploadResultCallBack(module: String): IUploadCallBack {
 
 /** Replies to Flutter with a failed upload result, for errors caught before the SDK call. */
 fun MethodChannel.Result.uploadResultFailure(module: String, message: String?) {
-    Log.e("AmaniBridge", "[$module] upload failed: $message")
+    BridgeLog.e("AmaniBridge", "[$module] upload failed")
+    BridgeLog.d("AmaniBridge", "[$module] upload failure detail: $message")
     val payload = mapOf("isSuccess" to false, "documentId" to null)
     Handler(Looper.getMainLooper()).post { success(payload) }
 }
